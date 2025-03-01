@@ -143,7 +143,7 @@ def create_app():
                     "Report Types": st.session_state.selected_report_types
                 }
                 update_report_types()
-                st.experimental_rerun()
+                st.rerun()
     
     # Stage 2: Fill in details based on report type
     elif st.session_state.form_stage == "fill_details":
@@ -154,7 +154,7 @@ def create_app():
         
         if st.button("← Go Back to Selection"):
             go_back_to_selection()
-            st.experimental_rerun()
+            st.rerun()
         
         # Form for collecting detailed information
         with st.form("report_details_form"):
