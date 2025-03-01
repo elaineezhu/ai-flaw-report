@@ -19,6 +19,7 @@ TACTIC_OPTIONS = ["Initial Access", "Execution", "Persistence", "Privilege Escal
 IMPACT_TYPE_OPTIONS = ["Confidentiality breach", "Integrity violation", "Availability disruption", "Abuse of system"]
 THREAT_ACTOR_INTENT_OPTIONS = ["Deliberate", "Unintentional", "Unknown"]
 DETECTION_METHODS = ["User observation", "Monitoring", "Testing", "External report", "Automated analysis"]
+REPORT_TYPES = ["All Flaw Reports", "Real-World Events", "Malign Actor", "Security Incident Report", "Vulnerability Report", "Hazard Report"]
 
 def initialize_session_state():
     """Initialize session state variables if they don't exist"""
@@ -27,21 +28,6 @@ def initialize_session_state():
     
     if 'form_data' not in st.session_state:
         st.session_state.form_data = {}
-    
-    if 'report_types' not in st.session_state:
-        st.session_state.report_types = {
-            "All Flaw Reports": False,
-            "Real-World Events": False,
-            "Malign Actor": False,
-            "Security Incident Report": False, 
-            "Vulnerability Report": False,
-            "Hazard Report": False
-        }
-
-def update_report_types():
-    """Update the report types based on user selection"""
-    for report_type in st.session_state.report_types:
-        st.session_state.report_types[report_type] = st.session_state.get(f"checkbox_{report_type}", False)
 
 def generate_recommendations(form_data):
     """Generate recommendations based on form data"""
@@ -62,11 +48,11 @@ def generate_recommendations(form_data):
         recommendations.append("User Community Forums")
     
     # Add recommendations for real-world events
-    if form_data.get("Report Type") and "Real-World Events" in form_data.get("Report Type"):
+    if "Real-World Events" in form_data.get("Report Types", []):
         recommendations.append("Affected Community Representatives")
         
     # Add security incident specific recommendations
-    if form_data.get("Report Type") and "Security Incident Report" in form_data.get("Report Type"):
+    if "Security Incident Report" in form_data.get("Report Types", []):
         recommendations.append("Computer Emergency Response Team (CERT)")
         
     return recommendations
@@ -101,25 +87,15 @@ def create_app():
         system_versions = st.multiselect("System Version(s)", options=SYSTEM_VERSIONS)
         report_status = st.selectbox("Report Status", options=REPORT_STATUS_OPTIONS)
         
-        # Report Type Selection
+        # Report Type Selection - Fixed to work within a form
         st.subheader("Report Type")
         st.markdown("Select all that apply:")
         
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.checkbox("All Flaw Reports", key="checkbox_All Flaw Reports", on_change=update_report_types)
-            st.checkbox("Real-World Events", key="checkbox_Real-World Events", on_change=update_report_types)
-        with col2:
-            st.checkbox("Malign Actor", key="checkbox_Malign Actor", on_change=update_report_types)
-            st.checkbox("Security Incident Report", key="checkbox_Security Incident Report", on_change=update_report_types)
-        with col3:
-            st.checkbox("Vulnerability Report", key="checkbox_Vulnerability Report", on_change=update_report_types)
-            st.checkbox("Hazard Report", key="checkbox_Hazard Report", on_change=update_report_types)
+        # Using multiselect instead of checkboxes with callbacks
+        report_types = st.multiselect("Report Types", options=REPORT_TYPES)
         
-        # Conditionally show fields based on report type
-        
-        # All Flaw Reports fields
-        if st.session_state.report_types["All Flaw Reports"]:
+        # All Flaw Reports fields - show conditionally based on selection
+        if "All Flaw Reports" in report_types:
             st.subheader("Flaw Report Details")
             
             session_id = st.text_input("Session ID")
@@ -144,7 +120,7 @@ def create_app():
             bounty_eligibility = st.radio("Bounty Eligibility", options=BOUNTY_OPTIONS)
         
         # Real-World Events fields
-        if st.session_state.report_types["Real-World Events"]:
+        if "Real-World Events" in report_types:
             st.subheader("Real-World Event Details")
             
             incident_description = st.text_area("Description of the Incident(s)")
@@ -161,27 +137,27 @@ def create_app():
             harm_narrative = st.text_area("Harm Narrative (justification of why the event constitutes harm)")
         
         # Malign Actor fields
-        if st.session_state.report_types["Malign Actor"]:
+        if "Malign Actor" in report_types:
             st.subheader("Malign Actor Details")
             
             tactic_select = st.multiselect("Tactic Select (e.g., from MITRE's ATLAS Matrix)", options=TACTIC_OPTIONS)
             impact = st.multiselect("Impact", options=IMPACT_TYPE_OPTIONS)
         
         # Security Incident Report fields
-        if st.session_state.report_types["Security Incident Report"]:
+        if "Security Incident Report" in report_types:
             st.subheader("Security Incident Details")
             
             threat_actor_intent = st.radio("Threat Actor Intent", options=THREAT_ACTOR_INTENT_OPTIONS)
             detection = st.multiselect("Detection", options=DETECTION_METHODS)
         
         # Vulnerability Report fields
-        if st.session_state.report_types["Vulnerability Report"]:
+        if "Vulnerability Report" in report_types:
             st.subheader("Vulnerability Details")
             
             proof_of_concept = st.text_area("Proof-of-Concept Exploit")
         
         # Hazard Report fields
-        if st.session_state.report_types["Hazard Report"]:
+        if "Hazard Report" in report_types:
             st.subheader("Hazard Details")
             
             examples = st.text_area("Examples (list of system inputs/outputs)")
@@ -192,19 +168,19 @@ def create_app():
         submitted = st.form_submit_button("Submit Report")
         
         if submitted:
-            # Collect form data
+            # Initialize form data with common fields
             form_data = {
                 "Report ID": st.session_state.report_id,
                 "Reporter ID": reporter_id,
                 "System Version(s)": system_versions,
                 "Report Status": report_status,
-                "Report Type": [k for k, v in st.session_state.report_types.items() if v],
+                "Report Types": report_types,
                 "Submission Timestamp": datetime.now().isoformat()
             }
             
             # Add conditional fields based on report type
-            if st.session_state.report_types["All Flaw Reports"]:
-                form_data.update({
+            if "All Flaw Reports" in report_types:
+                all_flaw_data = {
                     "Session ID": session_id,
                     "Report Timestamp": report_timestamp.isoformat(),
                     "Flaw Timestamp(s)": flaw_timestamp.isoformat(),
@@ -219,10 +195,11 @@ def create_app():
                     "Impacted Stakeholder(s)": impacted_stakeholders,
                     "Risk Source": risk_source,
                     "Bounty Eligibility": bounty_eligibility
-                })
+                }
+                form_data.update(all_flaw_data)
             
-            if st.session_state.report_types["Real-World Events"]:
-                form_data.update({
+            if "Real-World Events" in report_types:
+                real_world_data = {
                     "Description of the Incident(s)": incident_description,
                     "Implicated Systems": implicated_systems,
                     "Submitter Relationship": submitter_relationship,
@@ -231,31 +208,36 @@ def create_app():
                     "Experienced Harm Types": experienced_harm_types,
                     "Experienced Harm Severity": experienced_harm_severity,
                     "Harm Narrative": harm_narrative
-                })
+                }
+                form_data.update(real_world_data)
             
-            if st.session_state.report_types["Malign Actor"]:
-                form_data.update({
+            if "Malign Actor" in report_types:
+                malign_actor_data = {
                     "Tactic Select": tactic_select,
                     "Impact": impact
-                })
+                }
+                form_data.update(malign_actor_data)
             
-            if st.session_state.report_types["Security Incident Report"]:
-                form_data.update({
+            if "Security Incident Report" in report_types:
+                security_incident_data = {
                     "Threat Actor Intent": threat_actor_intent,
                     "Detection": detection
-                })
+                }
+                form_data.update(security_incident_data)
             
-            if st.session_state.report_types["Vulnerability Report"]:
-                form_data.update({
+            if "Vulnerability Report" in report_types:
+                vulnerability_data = {
                     "Proof-of-Concept Exploit": proof_of_concept
-                })
+                }
+                form_data.update(vulnerability_data)
             
-            if st.session_state.report_types["Hazard Report"]:
-                form_data.update({
+            if "Hazard Report" in report_types:
+                hazard_data = {
                     "Examples": examples,
                     "Replication Packet": replication_packet,
                     "Statistical Argument": statistical_argument
-                })
+                }
+                form_data.update(hazard_data)
             
             # Store form data in session state
             st.session_state.form_data = form_data
