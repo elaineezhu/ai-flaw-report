@@ -282,7 +282,7 @@ def display_report_type_classification():
     st.markdown("Please answer the following questions to determine the appropriate report type:")
 
     # Question 1: Real-world incident - Using radio with empty initial option
-    st.segment_control(
+    st.segmented_control(
         "Does this flaw report involve a real-world incident, where some form of harm has already occurred?",
         options=["Yes", "No"],
         key="real_world_incident_radio",
@@ -291,7 +291,7 @@ def display_report_type_classification():
     st.caption("(e.g., injury or harm to people, disruption to infrastructure, violations of laws or rights, or harm to property, or communities)")
     
     # Question 2: Threat actor - Using radio with empty initial option
-    st.segment_control(
+    st.segmented_control(
         "Does this flaw report involve a threat actor (i.e. could be exploited with ill intent)?",
         options=["Yes", "No"],
         key="threat_actor_radio",
