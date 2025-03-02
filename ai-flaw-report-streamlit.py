@@ -513,6 +513,9 @@ def create_app():
     
     Please fill out the appropriate sections based on the type of report you're submitting.
     """)
+
+    if st.button("Reset Form", type="secondary"):
+        reset_form()
     
     # Display form sections
     basic_info = display_basic_information()
