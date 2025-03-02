@@ -27,24 +27,26 @@ def initialize_session_state():
         st.session_state.uploaded_files = []
     
     if 'involves_real_world_incident' not in st.session_state:
-        st.session_state.involves_real_world_incident = False
+        st.session_state.involves_real_world_incident = None
     
     if 'involves_threat_actor' not in st.session_state:
-        st.session_state.involves_threat_actor = False
+        st.session_state.involves_threat_actor = None
 
 def determine_report_types():
     """Determine report types based on the answers to key questions"""
     report_types = []
     
-    # Determine report types based on answers
-    if st.session_state.involves_real_world_incident and st.session_state.involves_threat_actor:
-        report_types = ["Real-World Events", "Malign Actor", "Security Incident Report"]
-    elif st.session_state.involves_real_world_incident:
-        report_types = ["Real-World Events"]
-    elif st.session_state.involves_threat_actor:
-        report_types = ["Malign Actor", "Vulnerability Report"]
-    else:
-        report_types = ["Hazard Report"]
+    # Only determine report types if both questions have been answered
+    if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None:
+        # Determine report types based on answers
+        if st.session_state.involves_real_world_incident and st.session_state.involves_threat_actor:
+            report_types = ["Real-World Events", "Malign Actor", "Security Incident Report"]
+        elif st.session_state.involves_real_world_incident:
+            report_types = ["Real-World Events"]
+        elif st.session_state.involves_threat_actor:
+            report_types = ["Malign Actor", "Vulnerability Report"]
+        else:
+            report_types = ["Hazard Report"]
     
     return report_types
 
@@ -144,23 +146,8 @@ def handle_other_option(selection, options_list, label="Please specify other:"):
     
     return ""
 
-def create_app():
-    """Main function to create the Streamlit app"""
-    st.set_page_config(page_title="AI Flaw Report Form", layout="wide")
-    
-    # Initialize session state
-    initialize_session_state()
-    
-    # App title and description
-    st.title("AI Flaw & Incident Report Form")
-    st.markdown("""
-    This form allows you to report flaws, vulnerabilities, or incidents related to AI systems. 
-    The information you provide will help identify, categorize, and address potential issues.
-    
-    Please fill out the appropriate sections based on the type of report you're submitting.
-    """)
-    
-    # Common information section (always required)
+def display_basic_information():
+    """Display and gather basic information section"""
     st.subheader("Basic Information")
     
     with st.container():
@@ -171,28 +158,40 @@ def create_app():
                                       help="Required field")
             
             st.text_input("Report ID", st.session_state.report_id, disabled=True)
+            
+            # Systems moved to Basic Information
+            systems = st.multiselect("Systems", options=constants.SYSTEM_OPTIONS)
+            systems_other = handle_other_option(systems, systems, "Please specify other systems:")
         
         with col2:
             report_status = st.selectbox("Report Status", options=constants.REPORT_STATUS_OPTIONS)
             session_id = st.text_input("Session ID", help="Optional")
+            
+            # Timestamps side by side within column 2
+            timestamp_col1, timestamp_col2 = st.columns(2)
+            with timestamp_col1:
+                flaw_timestamp_start = st.date_input("Flaw Timestamp Start", datetime.now())
+            with timestamp_col2:
+                flaw_timestamp_end = st.date_input("Flaw Timestamp End", datetime.now())
     
-    # Common fields for All Flaw Reports  
+    # Store basic information
+    return {
+        "Reporter ID": reporter_id,
+        "Report ID": st.session_state.report_id,
+        "Report Status": report_status,
+        "Session ID": session_id,
+        "Flaw Timestamp Start": flaw_timestamp_start.isoformat() if flaw_timestamp_start else None,
+        "Flaw Timestamp End": flaw_timestamp_end.isoformat() if flaw_timestamp_end else None,
+        "Systems": systems,
+        "Systems_Other": systems_other
+    }
+
+def display_common_fields():
+    """Display and gather common fields section"""
     st.subheader("Common Fields")
     
-    with st.container():
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            flaw_timestamp_start = st.date_input("Flaw Timestamp Start", datetime.now())
-            flaw_timestamp_end = st.date_input("Flaw Timestamp End", datetime.now())
-            
-            context_info = st.text_area("Context Info (versions of other software/hardware involved)", 
-                                     help="Optional")
-        
-        with col2:
-            # Replace System and Developer with a single "Systems" field
-            systems = st.multiselect("Systems", options=constants.SYSTEM_OPTIONS)
-            systems_other = handle_other_option(systems, systems, "Please specify other systems:")
+    context_info = st.text_area("Context Info (versions of other software/hardware involved)", 
+                             help="Optional")
     
     # Flaw Description and Policy Violation
     flaw_description = st.text_area("Flaw Description (identification, reproduction, how it violates system policies)", 
@@ -230,25 +229,11 @@ def create_app():
     with col2:
         bounty_eligibility = st.radio("Bounty Eligibility", options=constants.BOUNTY_OPTIONS)
     
-    # Add file upload option
-    uploaded_files = st.file_uploader("Upload Relevant Files", accept_multiple_files=True)
-    if uploaded_files:
-        st.session_state.uploaded_files = uploaded_files
-        st.write(f"{len(uploaded_files)} file(s) uploaded")
-    
-    # Store the common data
-    st.session_state.common_data = {
-        "Reporter ID": reporter_id,
-        "Report ID": st.session_state.report_id,
-        "Report Status": report_status,
-        "Session ID": session_id,
-        "Flaw Timestamp Start": flaw_timestamp_start.isoformat() if flaw_timestamp_start else None,
-        "Flaw Timestamp End": flaw_timestamp_end.isoformat() if flaw_timestamp_end else None,
+    # Return common fields
+    return {
         "Context Info": context_info,
         "Flaw Description": flaw_description,
         "Policy Violation": policy_violation,
-        "Systems": systems,
-        "Systems_Other": systems_other,
         "Severity": severity,
         "Prevalence": prevalence,
         "Impacts": impacts,
@@ -259,8 +244,16 @@ def create_app():
         "Risk_Source_Other": risk_source_other,
         "Bounty Eligibility": bounty_eligibility
     }
-    
-    # New Report Type Selection based on two questions
+
+def display_file_upload():
+    """Display file upload section"""
+    uploaded_files = st.file_uploader("Upload Relevant Files", accept_multiple_files=True)
+    if uploaded_files:
+        st.session_state.uploaded_files = uploaded_files
+        st.write(f"{len(uploaded_files)} file(s) uploaded")
+
+def display_report_type_classification():
+    """Display report type classification questions"""
     st.subheader("Report Type Classification")
     st.markdown("Please answer the following questions to determine the appropriate report type:")
     
@@ -278,220 +271,278 @@ def create_app():
         key="threat_actor",
         on_change=update_threat_actor
     )
+
+def display_real_world_event_fields():
+    """Display fields for Real-World Events report type"""
+    st.subheader("Real-World Event Details")
+    
+    with st.container():
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            incident_description = st.text_area("Description of the Incident(s)", 
+                                             help="Required field")
+            implicated_systems = st.text_area("Implicated Systems", 
+                                           help="Required field")
+        
+        with col2:
+            submitter_relationship = st.selectbox("Submitter Relationship", 
+                                               options=["Affected stakeholder", "Independent observer", "System developer", "Other"])
+            submitter_relationship_other = handle_other_option(submitter_relationship, submitter_relationship, 
+                                                             "Please specify your relationship:")
+                
+            event_dates = st.date_input("Event Date(s)", datetime.now())
+            event_locations = st.text_input("Event Location(s)", 
+                                         help="Required field")
+    
+    with st.container():
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            experienced_harm_types = st.multiselect("Experienced Harm Types", options=constants.HARM_TYPES, 
+                                                  help="Required field")
+            harm_types_other = handle_other_option(experienced_harm_types, experienced_harm_types, 
+                                                "Please specify other harm types:")
+        
+        with col2:
+            experienced_harm_severity = st.select_slider("Experienced Harm Severity", options=constants.HARM_SEVERITY_OPTIONS)
+    
+    harm_narrative = st.text_area("Harm Narrative (justification of why the event constitutes harm)", 
+                               help="Required field")
+    
+    # Return field data
+    return {
+        "Description of the Incident(s)": incident_description,
+        "Implicated Systems": implicated_systems,
+        "Submitter Relationship": submitter_relationship,
+        "Submitter_Relationship_Other": submitter_relationship_other,
+        "Event Date(s)": event_dates.isoformat() if event_dates else None,
+        "Event Location(s)": event_locations,
+        "Experienced Harm Types": experienced_harm_types,
+        "Harm_Types_Other": harm_types_other,
+        "Experienced Harm Severity": experienced_harm_severity,
+        "Harm Narrative": harm_narrative
+    }
+
+def display_malign_actor_fields():
+    """Display fields for Malign Actor report type"""
+    st.subheader("Malign Actor Details")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        tactic_select = st.multiselect("Tactic Select (e.g., from MITRE's ATLAS Matrix)", options=constants.TACTIC_OPTIONS, 
+                                     help="Required field")
+        tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
+            
+    with col2:
+        impact = st.multiselect("Impact", options=constants.IMPACT_TYPE_OPTIONS, 
+                              help="Required field")
+        impact_other = handle_other_option(impact, impact, "Please specify other impacts:")
+    
+    # Return field data
+    return {
+        "Tactic Select": tactic_select,
+        "Tactic_Select_Other": tactic_select_other,
+        "Impact": impact,
+        "Impact_Other": impact_other
+    }
+
+def display_security_incident_fields():
+    """Display fields for Security Incident report type"""
+    st.subheader("Security Incident Details")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        threat_actor_intent = st.radio("Threat Actor Intent", options=constants.THREAT_ACTOR_INTENT_OPTIONS)
+        threat_actor_intent_other = handle_other_option(threat_actor_intent, threat_actor_intent, 
+                                                     "Please specify other threat actor intent:")
+            
+    with col2:
+        detection = st.multiselect("Detection", options=constants.DETECTION_METHODS, 
+                                 help="Required field")
+        detection_other = handle_other_option(detection, detection, "Please specify other detection methods:")
+    
+    # Return field data
+    return {
+        "Threat Actor Intent": threat_actor_intent,
+        "Threat_Actor_Intent_Other": threat_actor_intent_other,
+        "Detection": detection,
+        "Detection_Other": detection_other
+    }
+
+def display_vulnerability_fields():
+    """Display fields for Vulnerability report type"""
+    st.subheader("Vulnerability Details")
+    
+    proof_of_concept = st.text_area("Proof-of-Concept Exploit", 
+                                 help="Required field")
+    
+    # Return field data
+    return {
+        "Proof-of-Concept Exploit": proof_of_concept
+    }
+
+def display_hazard_fields():
+    """Display fields for Hazard report type"""
+    st.subheader("Hazard Details")
+    
+    examples = st.text_area("Examples (list of system inputs/outputs)", 
+                          help="Required field")
+    
+    replication_packet = st.text_area("Replication Packet (files evidencing the flaw)", 
+                                   help="Required field")
+    
+    statistical_argument = st.text_area("Statistical Argument (supporting evidence of a flaw)", 
+                                     help="Required field")
+    
+    # Return field data
+    return {
+        "Examples": examples,
+        "Replication Packet": replication_packet,
+        "Statistical Argument": statistical_argument
+    }
+
+def show_report_submission_results(form_data):
+    """Display submission results and recommendations"""
+    # Generate recommendations
+    recommendations = generate_recommendations(form_data)
+    
+    # Display JSON output and recommendations
+    st.success("Report submitted successfully!")
+    
+    st.subheader("Form Data (JSON)")
+    st.json(form_data)
+    
+    st.subheader("Recommended Recipients")
+    for rec in recommendations:
+        st.write(f"- {rec}")
+    
+    # Download button
+    json_str = json.dumps(form_data, indent=4)
+    st.download_button(
+        label="Download JSON",
+        data=json_str,
+        file_name=f"ai_flaw_report_{form_data['Report ID']}.json",
+        mime="application/json"
+    )
+
+def create_app():
+    """Main function to create the Streamlit app"""
+    st.set_page_config(page_title="AI Flaw Report Form", layout="wide")
+    
+    # Initialize session state
+    initialize_session_state()
+    
+    # App title and description
+    st.title("AI Flaw & Incident Report Form")
+    st.markdown("""
+    This form allows you to report flaws, vulnerabilities, or incidents related to AI systems. 
+    The information you provide will help identify, categorize, and address potential issues.
+    
+    Please fill out the appropriate sections based on the type of report you're submitting.
+    """)
+    
+    # Display form sections
+    basic_info = display_basic_information()
+    common_fields = display_common_fields()
+    display_file_upload()
+    
+    # Store the common data
+    st.session_state.common_data = {**basic_info, **common_fields}
+    
+    # Display report type classification questions
+    display_report_type_classification()
     
     # Determine report types based on answers
     report_types = determine_report_types()
     
-    # Display selected report types
-    st.subheader("Selected Report Types")
-    st.write(", ".join(report_types))
-    
-    # Store report types in session state
-    st.session_state.report_types = report_types
-    
-    # Now show conditional fields based on determined report types
-    if report_types:
-        st.session_state.form_data = {}  # Reset form data
+    # Only display the report type sections if both classification questions have been answered
+    if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None:
+        # Display selected report types
+        st.subheader("Selected Report Types")
+        st.write(", ".join(report_types))
         
-        # Real-World Events fields
-        if "Real-World Events" in report_types:
-            st.subheader("Real-World Event Details")
-            
-            with st.container():
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    incident_description = st.text_area("Description of the Incident(s)", 
-                                                     help="Required field")
-                    implicated_systems = st.text_area("Implicated Systems", 
-                                                   help="Required field")
-                
-                with col2:
-                    submitter_relationship = st.selectbox("Submitter Relationship", 
-                                                       options=["Affected stakeholder", "Independent observer", "System developer", "Other"])
-                    submitter_relationship_other = handle_other_option(submitter_relationship, submitter_relationship, 
-                                                                     "Please specify your relationship:")
-                        
-                    event_dates = st.date_input("Event Date(s)", datetime.now())
-                    event_locations = st.text_input("Event Location(s)", 
-                                                 help="Required field")
-            
-            with st.container():
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    experienced_harm_types = st.multiselect("Experienced Harm Types", options=constants.HARM_TYPES, 
-                                                          help="Required field")
-                    harm_types_other = handle_other_option(experienced_harm_types, experienced_harm_types, 
-                                                        "Please specify other harm types:")
-                
-                with col2:
-                    experienced_harm_severity = st.select_slider("Experienced Harm Severity", options=constants.HARM_SEVERITY_OPTIONS)
-            
-            harm_narrative = st.text_area("Harm Narrative (justification of why the event constitutes harm)", 
-                                       help="Required field")
-            
-            # Update form data
-            st.session_state.form_data.update({
-                "Description of the Incident(s)": incident_description,
-                "Implicated Systems": implicated_systems,
-                "Submitter Relationship": submitter_relationship,
-                "Submitter_Relationship_Other": submitter_relationship_other,
-                "Event Date(s)": event_dates.isoformat() if event_dates else None,
-                "Event Location(s)": event_locations,
-                "Experienced Harm Types": experienced_harm_types,
-                "Harm_Types_Other": harm_types_other,
-                "Experienced Harm Severity": experienced_harm_severity,
-                "Harm Narrative": harm_narrative
-            })
+        # Store report types in session state
+        st.session_state.report_types = report_types
         
-        # Malign Actor fields
-        if "Malign Actor" in report_types:
-            st.subheader("Malign Actor Details")
+        # Now show conditional fields based on determined report types
+        if report_types:
+            st.session_state.form_data = {}  # Reset form data
             
-            col1, col2 = st.columns(2)
-            with col1:
-                tactic_select = st.multiselect("Tactic Select (e.g., from MITRE's ATLAS Matrix)", options=constants.TACTIC_OPTIONS, 
-                                             help="Required field")
-                tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
-                    
-            with col2:
-                impact = st.multiselect("Impact", options=constants.IMPACT_TYPE_OPTIONS, 
-                                      help="Required field")
-                impact_other = handle_other_option(impact, impact, "Please specify other impacts:")
-            
-            # Update form data
-            st.session_state.form_data.update({
-                "Tactic Select": tactic_select,
-                "Tactic_Select_Other": tactic_select_other,
-                "Impact": impact,
-                "Impact_Other": impact_other
-            })
-        
-        # Security Incident Report fields
-        if "Security Incident Report" in report_types:
-            st.subheader("Security Incident Details")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                threat_actor_intent = st.radio("Threat Actor Intent", options=constants.THREAT_ACTOR_INTENT_OPTIONS)
-                threat_actor_intent_other = handle_other_option(threat_actor_intent, threat_actor_intent, 
-                                                             "Please specify other threat actor intent:")
-                    
-            with col2:
-                detection = st.multiselect("Detection", options=constants.DETECTION_METHODS, 
-                                         help="Required field")
-                detection_other = handle_other_option(detection, detection, "Please specify other detection methods:")
-            
-            # Update form data
-            st.session_state.form_data.update({
-                "Threat Actor Intent": threat_actor_intent,
-                "Threat_Actor_Intent_Other": threat_actor_intent_other,
-                "Detection": detection,
-                "Detection_Other": detection_other
-            })
-        
-        # Vulnerability Report fields
-        if "Vulnerability Report" in report_types:
-            st.subheader("Vulnerability Details")
-            
-            proof_of_concept = st.text_area("Proof-of-Concept Exploit", 
-                                         help="Required field")
-            
-            # Update form data
-            st.session_state.form_data.update({
-                "Proof-of-Concept Exploit": proof_of_concept
-            })
-        
-        # Hazard Report fields
-        if "Hazard Report" in report_types:
-            st.subheader("Hazard Details")
-            
-            examples = st.text_area("Examples (list of system inputs/outputs)", 
-                                  help="Required field")
-            
-            replication_packet = st.text_area("Replication Packet (files evidencing the flaw)", 
-                                           help="Required field")
-            
-            statistical_argument = st.text_area("Statistical Argument (supporting evidence of a flaw)", 
-                                             help="Required field")
-            
-            # Update form data
-            st.session_state.form_data.update({
-                "Examples": examples,
-                "Replication Packet": replication_packet,
-                "Statistical Argument": statistical_argument
-            })
-        
-        # Add "Report Types" to the form data
-        st.session_state.form_data["Report Types"] = report_types
-        
-        # Submit button - outside any form
-        if st.button("Submit Report"):
-            # Validate all required fields based on selected report types
-            required_fields = ["Reporter ID"]
-            
-            # Add common required fields
-            required_fields.extend(["Flaw Description", "Policy Violation", "Impacts", "Impacted Stakeholder(s)"])
-            
-            # Add type-specific required fields
+            # Real-World Events fields
             if "Real-World Events" in report_types:
-                required_fields.extend([
-                    "Description of the Incident(s)", "Implicated Systems", "Event Location(s)",
-                    "Experienced Harm Types", "Harm Narrative"
-                ])
+                real_world_fields = display_real_world_event_fields()
+                st.session_state.form_data.update(real_world_fields)
             
+            # Malign Actor fields
             if "Malign Actor" in report_types:
-                required_fields.extend(["Tactic Select", "Impact"])
+                malign_actor_fields = display_malign_actor_fields()
+                st.session_state.form_data.update(malign_actor_fields)
             
+            # Security Incident Report fields
             if "Security Incident Report" in report_types:
-                required_fields.append("Detection")
+                security_incident_fields = display_security_incident_fields()
+                st.session_state.form_data.update(security_incident_fields)
             
+            # Vulnerability Report fields
             if "Vulnerability Report" in report_types:
-                required_fields.append("Proof-of-Concept Exploit")
+                vulnerability_fields = display_vulnerability_fields()
+                st.session_state.form_data.update(vulnerability_fields)
             
+            # Hazard Report fields
             if "Hazard Report" in report_types:
-                required_fields.extend(["Examples", "Replication Packet", "Statistical Argument"])
+                hazard_fields = display_hazard_fields()
+                st.session_state.form_data.update(hazard_fields)
             
-            # Combine all data for validation
-            all_data = {**st.session_state.common_data, **st.session_state.form_data}
+            # Add "Report Types" to the form data
+            st.session_state.form_data["Report Types"] = report_types
             
-            # Validate
-            missing_fields = validate_required_fields(all_data, required_fields)
-            
-            if missing_fields:
-                st.error(f"Please fill out the following required fields: {', '.join(missing_fields)}")
-            else:
-                # Save uploaded files
-                if st.session_state.uploaded_files:
-                    file_paths = save_uploaded_files(st.session_state.uploaded_files)
-                    st.session_state.form_data["Uploaded File Paths"] = file_paths
+            # Submit button
+            if st.button("Submit Report"):
+                # Validate all required fields based on selected report types
+                required_fields = ["Reporter ID"]
                 
-                handle_submission()
+                # Add common required fields
+                required_fields.extend(["Flaw Description", "Policy Violation", "Impacts", "Impacted Stakeholder(s)"])
+                
+                # Add type-specific required fields
+                if "Real-World Events" in report_types:
+                    required_fields.extend([
+                        "Description of the Incident(s)", "Implicated Systems", "Event Location(s)",
+                        "Experienced Harm Types", "Harm Narrative"
+                    ])
+                
+                if "Malign Actor" in report_types:
+                    required_fields.extend(["Tactic Select", "Impact"])
+                
+                if "Security Incident Report" in report_types:
+                    required_fields.append("Detection")
+                
+                if "Vulnerability Report" in report_types:
+                    required_fields.append("Proof-of-Concept Exploit")
+                
+                if "Hazard Report" in report_types:
+                    required_fields.extend(["Examples", "Replication Packet", "Statistical Argument"])
+                
+                # Combine all data for validation
+                all_data = {**st.session_state.common_data, **st.session_state.form_data}
+                
+                # Validate
+                missing_fields = validate_required_fields(all_data, required_fields)
+                
+                if missing_fields:
+                    st.error(f"Please fill out the following required fields: {', '.join(missing_fields)}")
+                else:
+                    # Save uploaded files
+                    if st.session_state.uploaded_files:
+                        file_paths = save_uploaded_files(st.session_state.uploaded_files)
+                        st.session_state.form_data["Uploaded File Paths"] = file_paths
+                    
+                    handle_submission()
     
     # Display submission results if form was submitted
     if st.session_state.submission_status:
-        # Generate recommendations
-        recommendations = generate_recommendations(st.session_state.form_data)
-        
-        # Display JSON output and recommendations
-        st.success("Report submitted successfully!")
-        
-        st.subheader("Form Data (JSON)")
-        st.json(st.session_state.form_data)
-        
-        st.subheader("Recommended Recipients")
-        for rec in recommendations:
-            st.write(f"- {rec}")
-        
-        # Download button - now outside any form
-        json_str = json.dumps(st.session_state.form_data, indent=4)
-        st.download_button(
-            label="Download JSON",
-            data=json_str,
-            file_name=f"ai_flaw_report_{st.session_state.report_id}.json",
-            mime="application/json"
-        )
+        show_report_submission_results(st.session_state.form_data)
 
 if __name__ == "__main__":
     create_app()
