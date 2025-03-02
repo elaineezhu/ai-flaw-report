@@ -8,36 +8,14 @@ import constants
 
 def reset_form():
     """Reset all session state variables to their initial values"""
-    # Store the current page state before clearing
-    form_reset_flag = True
+    # Create a special key that will trigger a complete reset on the next run
+    st.session_state['_needs_complete_reset'] = True
     
-    # Explicitly clear inputs by setting them to default values
-    # Multi-select fields
-    for key in list(st.session_state.keys()):
-        if isinstance(st.session_state[key], list):
-            st.session_state[key] = []
-        elif key.endswith(('_radio', '_select')):
-            st.session_state[key] = None
-        elif key in ['real_world_incident_radio', 'threat_actor_radio']:
-            st.session_state[key] = None
+    # Generate a new report ID for the next session
+    st.session_state['_new_report_id'] = str(uuid.uuid4())
     
-    # Clear all session state variables except those we want to preserve
-    preserved_keys = ['form_reset']
-    for key in list(st.session_state.keys()):
-        if key not in preserved_keys:
-            del st.session_state[key]
-    
-    # Generate a new report ID
-    new_report_id = str(uuid.uuid4())
-    
-    # Re-initialize with new values
-    initialize_session_state()
-    
-    # Explicitly set the report ID to the new one
-    st.session_state.report_id = new_report_id
-    
-    # Set the reset flag to force rerun
-    st.session_state.form_reset = True
+    # Force a rerun to apply the reset
+    st.rerun()
 
 def initialize_session_state():
     """Initialize session state variables if they don't exist"""
@@ -496,8 +474,23 @@ def create_app():
     """Main function to create the Streamlit app"""
     st.set_page_config(page_title="AI Flaw Report Form", layout="wide")
     
-    # Initialize session state
-    initialize_session_state()
+    # Handle the complete reset if needed
+    if st.session_state.get('_needs_complete_reset', False):
+        # Store the new report ID
+        new_report_id = st.session_state.get('_new_report_id', str(uuid.uuid4()))
+        
+        # Clear ALL session state
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+            
+        # Set the new report ID
+        st.session_state.report_id = new_report_id
+        
+        # Initialize session state with fresh values
+        initialize_session_state()
+    else:
+        # Normal initialization
+        initialize_session_state()
     
     # Check if we need to rerun after reset
     if st.session_state.get('form_reset', False):
