@@ -8,14 +8,35 @@ import constants
 
 def reset_form():
     """Reset all session state variables to their initial values"""
-    # Clear all existing session state variables
+    # Store the current page state before clearing
+    form_reset_flag = True
+    
+    # Explicitly clear inputs by setting them to default values
+    # Multi-select fields
     for key in list(st.session_state.keys()):
-        del st.session_state[key]
+        if isinstance(st.session_state[key], list):
+            st.session_state[key] = []
+        elif key.endswith(('_radio', '_select')):
+            st.session_state[key] = None
+        elif key in ['real_world_incident_radio', 'threat_actor_radio']:
+            st.session_state[key] = None
+    
+    # Clear all session state variables except those we want to preserve
+    preserved_keys = ['form_reset']
+    for key in list(st.session_state.keys()):
+        if key not in preserved_keys:
+            del st.session_state[key]
+    
+    # Generate a new report ID
+    new_report_id = str(uuid.uuid4())
     
     # Re-initialize with new values
     initialize_session_state()
     
-    # Set a flag to force rerun after reset
+    # Explicitly set the report ID to the new one
+    st.session_state.report_id = new_report_id
+    
+    # Set the reset flag to force rerun
     st.session_state.form_reset = True
 
 def initialize_session_state():
@@ -448,14 +469,14 @@ def display_hazard_fields():
 
 def show_report_submission_results(form_data):
     """Display submission results and recommendations"""
-    # Generate recommendations
-    recommendations = generate_recommendations(form_data)
-    
     # Display JSON output and recommendations
     st.success("Report submitted successfully!")
-    
-    st.subheader("Form Data (JSON)")
-    st.json(form_data)
+
+    # st.subheader("Form Data (JSON)")
+    # st.json(form_data)
+
+    # Generate recommendations
+    recommendations = generate_recommendations(form_data)
     
     st.subheader("Recommended Recipients")
     for rec in recommendations:
@@ -469,6 +490,7 @@ def show_report_submission_results(form_data):
         file_name=f"ai_flaw_report_{form_data['Report ID']}.json",
         mime="application/json"
     )
+
 
 def create_app():
     """Main function to create the Streamlit app"""
@@ -484,12 +506,6 @@ def create_app():
     
     # App title and description
     st.title("AI Flaw & Incident Report Form")
-    
-    # Add reset button at the top of the form
-    reset_col1, reset_col2, reset_col3 = st.columns([7, 2, 1])
-    with reset_col3:
-        if st.button("Reset Form", type="secondary"):
-            reset_form()
     
     st.markdown("""
     This form allows you to report flaws, vulnerabilities, or incidents related to AI systems. 
@@ -561,6 +577,8 @@ def create_app():
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
                 submit_button = st.button("Submit Report", type="primary", use_container_width=True)
+                if st.button("Reset Form", type="secondary", use_container_width=True):
+                    reset_form()
                 
             if submit_button:
                 # Validate all required fields based on selected report types
@@ -608,11 +626,11 @@ def create_app():
     if st.session_state.submission_status:
         show_report_submission_results(st.session_state.form_data)
         
-        # Add another reset button at the bottom when showing results
-        reset_col1, reset_col2 = st.columns([3, 1])
-        with reset_col2:
-            if st.button("Create New Report", type="primary"):
-                reset_form()
+        # # Add another reset button at the bottom when showing results
+        # reset_col1, reset_col2 = st.columns([3, 1])
+        # with reset_col2:
+        #     if st.button("Create New Report", type="primary"):
+        #         reset_form()
 
 if __name__ == "__main__":
     create_app()
