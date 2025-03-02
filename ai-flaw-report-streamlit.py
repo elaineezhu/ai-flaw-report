@@ -26,11 +26,19 @@ def initialize_session_state():
     if 'uploaded_files' not in st.session_state:
         st.session_state.uploaded_files = []
     
+    # Initialize classification question variables
     if 'involves_real_world_incident' not in st.session_state:
         st.session_state.involves_real_world_incident = None
     
     if 'involves_threat_actor' not in st.session_state:
         st.session_state.involves_threat_actor = None
+        
+    # Initialize radio button state variables
+    if 'real_world_incident_radio' not in st.session_state:
+        st.session_state.real_world_incident_radio = None
+        
+    if 'threat_actor_radio' not in st.session_state:
+        st.session_state.threat_actor_radio = None
 
 def determine_report_types():
     """Determine report types based on the answers to key questions"""
@@ -257,30 +265,42 @@ def display_report_type_classification():
     st.subheader("Report Type Classification")
     st.markdown("Please answer the following questions to determine the appropriate report type:")
     
-    # Question 1: Real-world incident - Changed from checkbox to radio button for clarity
+    # Question 1: Real-world incident - Using radio with empty initial option
     st.radio(
         "Does this flaw report involve a real-world incident, where some form of harm has already occurred?",
-        options=["Yes", "No"],
+        options=["", "Yes", "No"],
+        index=0,  # Default to empty option
         key="real_world_incident_radio",
         on_change=update_real_world_incident_radio
     )
     st.caption("(e.g., injury or harm to people, disruption to infrastructure, violations of laws or rights, or harm to property, or communities)")
     
-    # Question 2: Threat actor - Changed from checkbox to radio button for clarity
+    # Question 2: Threat actor - Using radio with empty initial option
     st.radio(
         "Does this flaw report involve a threat actor (i.e. could be exploited with ill intent)?",
-        options=["Yes", "No"],
+        options=["", "Yes", "No"],
+        index=0,  # Default to empty option
         key="threat_actor_radio",
         on_change=update_threat_actor_radio
     )
 
 def update_real_world_incident_radio():
     """Update the session state based on radio button selection"""
-    st.session_state.involves_real_world_incident = True if st.session_state.real_world_incident_radio == "Yes" else False
+    if st.session_state.real_world_incident_radio == "Yes":
+        st.session_state.involves_real_world_incident = True
+    elif st.session_state.real_world_incident_radio == "No":
+        st.session_state.involves_real_world_incident = False
+    else:
+        st.session_state.involves_real_world_incident = None
 
 def update_threat_actor_radio():
     """Update the session state based on radio button selection"""
-    st.session_state.involves_threat_actor = True if st.session_state.threat_actor_radio == "Yes" else False
+    if st.session_state.threat_actor_radio == "Yes":
+        st.session_state.involves_threat_actor = True
+    elif st.session_state.threat_actor_radio == "No":
+        st.session_state.involves_threat_actor = False
+    else:
+        st.session_state.involves_threat_actor = None
 
 def display_real_world_event_fields():
     """Display fields for Real-World Events report type"""
