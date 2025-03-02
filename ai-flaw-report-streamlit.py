@@ -6,7 +6,6 @@ import os
 
 import constants
 
-
 def initialize_session_state():
     """Initialize session state variables if they don't exist"""
     if 'report_id' not in st.session_state:
