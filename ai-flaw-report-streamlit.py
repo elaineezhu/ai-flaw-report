@@ -6,6 +6,18 @@ import os
 
 import constants
 
+def reset_form():
+    """Reset all session state variables to their initial values"""
+    # Clear all existing session state variables
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    
+    # Re-initialize with new values
+    initialize_session_state()
+    
+    # Set a flag to force rerun after reset
+    st.session_state.form_reset = True
+
 def initialize_session_state():
     """Initialize session state variables if they don't exist"""
     if 'report_id' not in st.session_state:
@@ -39,6 +51,10 @@ def initialize_session_state():
         
     if 'threat_actor_radio' not in st.session_state:
         st.session_state.threat_actor_radio = None
+    
+    # Initialize form reset flag
+    if 'form_reset' not in st.session_state:
+        st.session_state.form_reset = False
 
 def determine_report_types():
     """Determine report types based on the answers to key questions"""
@@ -264,22 +280,20 @@ def display_report_type_classification():
     """Display report type classification questions"""
     st.subheader("Report Type Classification")
     st.markdown("Please answer the following questions to determine the appropriate report type:")
-    
+
     # Question 1: Real-world incident - Using radio with empty initial option
-    st.radio(
+    st.segment_control(
         "Does this flaw report involve a real-world incident, where some form of harm has already occurred?",
-        options=["", "Yes", "No"],
-        index=0,  # Default to empty option
+        options=["Yes", "No"],
         key="real_world_incident_radio",
         on_change=update_real_world_incident_radio
     )
     st.caption("(e.g., injury or harm to people, disruption to infrastructure, violations of laws or rights, or harm to property, or communities)")
     
     # Question 2: Threat actor - Using radio with empty initial option
-    st.radio(
+    st.segment_control(
         "Does this flaw report involve a threat actor (i.e. could be exploited with ill intent)?",
-        options=["", "Yes", "No"],
-        index=0,  # Default to empty option
+        options=["Yes", "No"],
         key="threat_actor_radio",
         on_change=update_threat_actor_radio
     )
@@ -463,8 +477,20 @@ def create_app():
     # Initialize session state
     initialize_session_state()
     
+    # Check if we need to rerun after reset
+    if st.session_state.get('form_reset', False):
+        st.session_state.form_reset = False
+        st.rerun()
+    
     # App title and description
     st.title("AI Flaw & Incident Report Form")
+    
+    # Add reset button at the top of the form
+    reset_col1, reset_col2, reset_col3 = st.columns([7, 2, 1])
+    with reset_col3:
+        if st.button("Reset Form", type="secondary"):
+            reset_form()
+    
     st.markdown("""
     This form allows you to report flaws, vulnerabilities, or incidents related to AI systems. 
     The information you provide will help identify, categorize, and address potential issues.
@@ -581,6 +607,12 @@ def create_app():
     # Display submission results if form was submitted
     if st.session_state.submission_status:
         show_report_submission_results(st.session_state.form_data)
+        
+        # Add another reset button at the bottom when showing results
+        reset_col1, reset_col2 = st.columns([3, 1])
+        with reset_col2:
+            if st.button("Create New Report", type="primary"):
+                reset_form()
 
 if __name__ == "__main__":
     create_app()
