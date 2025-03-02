@@ -257,20 +257,30 @@ def display_report_type_classification():
     st.subheader("Report Type Classification")
     st.markdown("Please answer the following questions to determine the appropriate report type:")
     
-    # Question 1: Real-world incident
-    st.checkbox(
-        "Does this flaw report involve a real-world incident, where some form of harm has already occurred?", 
-        key="real_world_incident",
-        on_change=update_real_world_incident
+    # Question 1: Real-world incident - Changed from checkbox to radio button for clarity
+    st.radio(
+        "Does this flaw report involve a real-world incident, where some form of harm has already occurred?",
+        options=["Yes", "No"],
+        key="real_world_incident_radio",
+        on_change=update_real_world_incident_radio
     )
     st.caption("(e.g., injury or harm to people, disruption to infrastructure, violations of laws or rights, or harm to property, or communities)")
     
-    # Question 2: Threat actor
-    st.checkbox(
+    # Question 2: Threat actor - Changed from checkbox to radio button for clarity
+    st.radio(
         "Does this flaw report involve a threat actor (i.e. could be exploited with ill intent)?",
-        key="threat_actor",
-        on_change=update_threat_actor
+        options=["Yes", "No"],
+        key="threat_actor_radio",
+        on_change=update_threat_actor_radio
     )
+
+def update_real_world_incident_radio():
+    """Update the session state based on radio button selection"""
+    st.session_state.involves_real_world_incident = True if st.session_state.real_world_incident_radio == "Yes" else False
+
+def update_threat_actor_radio():
+    """Update the session state based on radio button selection"""
+    st.session_state.involves_threat_actor = True if st.session_state.threat_actor_radio == "Yes" else False
 
 def display_real_world_event_fields():
     """Display fields for Real-World Events report type"""
@@ -497,8 +507,16 @@ def create_app():
             # Add "Report Types" to the form data
             st.session_state.form_data["Report Types"] = report_types
             
-            # Submit button
-            if st.button("Submit Report"):
+            # Add visual separation before submit button
+            st.markdown("---")
+            st.markdown(" ")  # Add extra space
+            
+            # Submit button with enhanced styling
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                submit_button = st.button("Submit Report", type="primary", use_container_width=True)
+                
+            if submit_button:
                 # Validate all required fields based on selected report types
                 required_fields = ["Reporter ID"]
                 
