@@ -6,6 +6,7 @@ import os
 
 import constants
 
+
 def initialize_session_state():
     """Initialize session state variables if they don't exist"""
     if 'report_id' not in st.session_state:
@@ -123,6 +124,27 @@ def update_real_world_incident():
 def update_threat_actor():
     st.session_state.involves_threat_actor = st.session_state.threat_actor
 
+def handle_other_option(selection, options_list, label="Please specify other:"):
+    """Reusable function to handle "Other" option in any selection component
+    
+    Args:
+        selection: Current selection (list for multiselect, string for selectbox/radio)
+        options_list: List of selected options or single selection
+        label: Label for the text input field
+        
+    Returns:
+        String with user-specified value if "Other" is selected, empty string otherwise
+    """
+    # Handle both multiselect (list) and single select (string) cases
+    if isinstance(selection, list):
+        if "Other" in selection:
+            return st.text_area(label)
+    else:  # selectbox or radio (string)
+        if selection == "Other":
+            return st.text_area(label)
+    
+    return ""
+
 def create_app():
     """Main function to create the Streamlit app"""
     st.set_page_config(page_title="AI Flaw Report Form", layout="wide")
@@ -171,12 +193,7 @@ def create_app():
         with col2:
             # Replace System and Developer with a single "Systems" field
             systems = st.multiselect("Systems", options=constants.SYSTEM_OPTIONS)
-            
-            # Check if "Other" is selected in Systems
-            if "Other" in systems:
-                systems_other = st.text_area("Please specify other systems:")
-            else:
-                systems_other = ""
+            systems_other = handle_other_option(systems, systems, "Please specify other systems:")
     
     # Flaw Description and Policy Violation
     flaw_description = st.text_area("Flaw Description (identification, reproduction, how it violates system policies)", 
@@ -197,33 +214,19 @@ def create_app():
     with col1:
         impacts = st.multiselect("Impacts", options=constants.IMPACT_OPTIONS, 
                                help="Required field")
-        
-        # Check if "Other" is selected in Impacts
-        if "Other" in impacts:
-            impacts_other = st.text_area("Please specify other impacts:")
-        else:
-            impacts_other = ""
+        impacts_other = handle_other_option(impacts, impacts, "Please specify other impacts:")
             
     with col2:
         impacted_stakeholders = st.multiselect("Impacted Stakeholder(s)", options=constants.STAKEHOLDER_OPTIONS, 
                                              help="Required field")
-        
-        # Check if "Other" is selected in Impacted Stakeholders
-        if "Other" in impacted_stakeholders:
-            impacted_stakeholders_other = st.text_area("Please specify other impacted stakeholders:")
-        else:
-            impacted_stakeholders_other = ""
+        impacted_stakeholders_other = handle_other_option(impacted_stakeholders, impacted_stakeholders, 
+                                                      "Please specify other impacted stakeholders:")
     
     # Risk Source and Bounty Eligibility
     col1, col2 = st.columns(2)
     with col1:
         risk_source = st.multiselect("Risk Source", options=constants.RISK_SOURCE_OPTIONS)
-        
-        # Check if "Other" is selected in Risk Source
-        if "Other" in risk_source:
-            risk_source_other = st.text_area("Please specify other risk sources:")
-        else:
-            risk_source_other = ""
+        risk_source_other = handle_other_option(risk_source, risk_source, "Please specify other risk sources:")
             
     with col2:
         bounty_eligibility = st.radio("Bounty Eligibility", options=constants.BOUNTY_OPTIONS)
@@ -307,12 +310,8 @@ def create_app():
                 with col2:
                     submitter_relationship = st.selectbox("Submitter Relationship", 
                                                        options=["Affected stakeholder", "Independent observer", "System developer", "Other"])
-                    
-                    # Check if "Other" is selected in Submitter Relationship
-                    if submitter_relationship == "Other":
-                        submitter_relationship_other = st.text_area("Please specify your relationship:")
-                    else:
-                        submitter_relationship_other = ""
+                    submitter_relationship_other = handle_other_option(submitter_relationship, submitter_relationship, 
+                                                                     "Please specify your relationship:")
                         
                     event_dates = st.date_input("Event Date(s)", datetime.now())
                     event_locations = st.text_input("Event Location(s)", 
@@ -324,12 +323,8 @@ def create_app():
                 with col1:
                     experienced_harm_types = st.multiselect("Experienced Harm Types", options=constants.HARM_TYPES, 
                                                           help="Required field")
-                    
-                    # Check if "Other" is selected in Harm Types
-                    if "Other" in experienced_harm_types:
-                        harm_types_other = st.text_area("Please specify other harm types:")
-                    else:
-                        harm_types_other = ""
+                    harm_types_other = handle_other_option(experienced_harm_types, experienced_harm_types, 
+                                                        "Please specify other harm types:")
                 
                 with col2:
                     experienced_harm_severity = st.select_slider("Experienced Harm Severity", options=constants.HARM_SEVERITY_OPTIONS)
@@ -359,22 +354,12 @@ def create_app():
             with col1:
                 tactic_select = st.multiselect("Tactic Select (e.g., from MITRE's ATLAS Matrix)", options=constants.TACTIC_OPTIONS, 
                                              help="Required field")
-                
-                # Check if "Other" is selected in Tactic Select
-                if "Other" in tactic_select:
-                    tactic_select_other = st.text_area("Please specify other tactics:")
-                else:
-                    tactic_select_other = ""
+                tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
                     
             with col2:
                 impact = st.multiselect("Impact", options=constants.IMPACT_TYPE_OPTIONS, 
                                       help="Required field")
-                
-                # Check if "Other" is selected in Impact
-                if "Other" in impact:
-                    impact_other = st.text_area("Please specify other impacts:")
-                else:
-                    impact_other = ""
+                impact_other = handle_other_option(impact, impact, "Please specify other impacts:")
             
             # Update form data
             st.session_state.form_data.update({
@@ -391,22 +376,13 @@ def create_app():
             col1, col2 = st.columns(2)
             with col1:
                 threat_actor_intent = st.radio("Threat Actor Intent", options=constants.THREAT_ACTOR_INTENT_OPTIONS)
-                
-                # Check if "Other" is selected in Threat Actor Intent
-                if threat_actor_intent == "Other":
-                    threat_actor_intent_other = st.text_area("Please specify other threat actor intent:")
-                else:
-                    threat_actor_intent_other = ""
+                threat_actor_intent_other = handle_other_option(threat_actor_intent, threat_actor_intent, 
+                                                             "Please specify other threat actor intent:")
                     
             with col2:
                 detection = st.multiselect("Detection", options=constants.DETECTION_METHODS, 
                                          help="Required field")
-                
-                # Check if "Other" is selected in Detection
-                if "Other" in detection:
-                    detection_other = st.text_area("Please specify other detection methods:")
-                else:
-                    detection_other = ""
+                detection_other = handle_other_option(detection, detection, "Please specify other detection methods:")
             
             # Update form data
             st.session_state.form_data.update({
