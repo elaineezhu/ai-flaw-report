@@ -8,6 +8,14 @@ SYSTEM_VERSIONS = [
     "Other"
 ]
 
+SYSTEM_OPTIONS = [
+    "v1.0",
+    "v1.1",
+    "v2.0",
+    "v3.0",
+    "Other"
+]
+
 REPORT_STATUS_OPTIONS = [
     "New",
     "Update to Under Investigation Report",
