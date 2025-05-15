@@ -3,8 +3,17 @@ import json
 from datetime import datetime
 import uuid
 import os
-
+import psycopg2
+from psycopg2.extras import Json
 import constants
+
+DB_CONFIG = {
+    "dbname": "flaw_reports",
+    "user": "USERNAME", # Replace with your own credentials
+    "password": "PASSWORD",
+    "host": "localhost",
+    "port": "5432"
+}
 
 def reset_form():
     """Reset all session state variables to their initial values"""
@@ -112,9 +121,15 @@ def generate_recommendations(form_data):
     return recommendations
 
 def handle_submission():
-    # Combine all data
+    """Combine all data and prepare for submission"""
     form_data = st.session_state.form_data.copy()
+    
+    # Ensure common data is merged in
     form_data.update(st.session_state.common_data)
+    
+    if "Report ID" not in form_data and "report_id" in st.session_state:
+        form_data["Report ID"] = st.session_state.report_id
+    
     form_data["Submission Timestamp"] = datetime.now().isoformat()
     
     # Handle uploaded files
@@ -446,33 +461,563 @@ def display_hazard_fields():
     }
 
 def show_report_submission_results(form_data):
-    """Display submission results and recommendations"""
-    # Display JSON output and recommendations
+    """Display submission results with fixed download functionality"""
     st.success("Report submitted successfully!")
 
-    # st.subheader("Form Data (JSON)")
-    # st.json(form_data)
-
-    # Generate recommendations
-    recommendations = generate_recommendations(form_data)
+    report_id = form_data.get("Report ID", st.session_state.get("report_id", "unknown"))
     
-    st.subheader("Recommended Recipients")
-    for rec in recommendations:
-        st.write(f"- {rec}")
+    form_data["Report ID"] = report_id
     
-    # Download button
-    json_str = json.dumps(form_data, indent=4)
-    st.download_button(
-        label="Download JSON",
-        data=json_str,
-        file_name=f"ai_flaw_report_{form_data['Report ID']}.json",
-        mime="application/json"
-    )
+    machine_readable_output = generate_machine_readable_output(form_data)
+    
+    report_path = save_to_database(form_data, machine_readable_output)
+    
+    st.subheader("Download Your Report")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Download as JSON using the verified report_id
+        json_str = json.dumps(form_data, indent=4)
+        st.download_button(
+            label="Download Report (JSON)",
+            data=json_str,
+            file_name=f"ai_flaw_report_{report_id}.json",
+            mime="application/json",
+            use_container_width=True
+        )
+    
+    with col2:
+        # Download as JSON-LD using the verified report_id
+        json_ld_str = json.dumps(machine_readable_output, indent=4)
+        st.download_button(
+            label="Download Machine-Readable Report (JSON-LD)",
+            data=json_ld_str,
+            file_name=f"ai_flaw_report_{report_id}_jsonld.json",
+            mime="application/json",
+            use_container_width=True
+        )
+    
+    st.markdown("---")
+    st.subheader("Recommended Report Recipients")
+    
+    recipients = determine_report_recipients(form_data)
+    
+    if not recipients:
+        st.write("No specific recipients determined for this report.")
+    else:
+        grouped_recipients = {}
+        for recipient in recipients:
+            recipient_type = recipient.get("type", "Other")
+            if recipient_type not in grouped_recipients:
+                grouped_recipients[recipient_type] = []
+            grouped_recipients[recipient_type].append(recipient)
+        
+        for recipient_type, recipients_list in grouped_recipients.items():
+            st.write(f"**{recipient_type}s:**")
+            for recipient in recipients_list:
+                st.markdown(f"- [{recipient['name']}]({recipient['contact']})")
+        
+        if st.button("Send to All Recipients", type="primary"):
+            st.success("STUB FOR SENDING TO ALL RECIPIENTS IN ACTUAL IMPLEMENTATION")
 
+def display_disclosure_plan():
+    """Display fields for public disclosure plan"""
+    st.subheader("Public Disclosure Plan")
+    
+    with st.container():
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            disclosure_intent = st.radio(
+                "Do you intend to publicly disclose this issue?",
+                options=["Yes", "No", "Undecided"],
+                help="Required field"
+            )
+            
+            if disclosure_intent == "Yes":
+                disclosure_timeline = st.selectbox(
+                    "Planned disclosure timeline",
+                    options=["Immediate (0 days)", "Short-term (1-30 days)", "Medium-term (31-90 days)", "Long-term (90+ days)"],
+                    help="When do you plan to publicly disclose this issue?"
+                )
+            
+        with col2:
+            if disclosure_intent == "Yes":
+                disclosure_channels = st.multiselect(
+                    "Disclosure channels",
+                    options=["Academic paper", "Blog post", "Social media", "Media outlet", "Conference presentation", "Other"],
+                    help="Where do you plan to disclose this issue?"
+                )
+                disclosure_channels_other = handle_other_option(disclosure_channels, disclosure_channels, 
+                                                  "Please specify other disclosure channels:")
+    
+    # Only show embargo request if they plan to disclose
+    if disclosure_intent == "Yes":
+        embargo_request = st.text_area(
+            "Embargo request details",
+            help="If you're requesting an embargo period before public disclosure, please provide details"
+        )
+    else:
+        embargo_request = ""
+    
+    return {
+        "Disclosure Intent": disclosure_intent,
+        "Disclosure Timeline": disclosure_timeline if disclosure_intent == "Yes" else None,
+        "Disclosure Channels": disclosure_channels if disclosure_intent == "Yes" else [],
+        "Disclosure_Channels_Other": disclosure_channels_other if disclosure_intent == "Yes" else "",
+        "Embargo Request": embargo_request,
+    }
+
+def check_csam_harm_selected(harm_types):
+    """Check if CSAM is selected as a harm type and show appropriate warning/guidance"""
+    if "CSAM" in harm_types:
+        st.error("""
+        ## IMPORTANT: CSAM Reporting Guidelines
+        
+        **Possession and distribution of CSAM and AI-generated CSAM is illegal. Do not include illegal media in this report.**
+        
+        ### What to do instead:
+        1. Report to the **National Center for Missing & Exploited Children (NCMEC)** via their CyberTipline: https://report.cybertip.org/
+        2. If outside the US, report to the **Internet Watch Foundation (IWF)**: https://report.iwf.org.uk/
+        3. Report directly to the AI model developer through their official channels
+        
+        Only share information about the nature of the issue, WITHOUT including illegal content, prompts that could generate illegal content, or specific details that could enable others to recreate the issue.
+        
+        This report will be restricted to appropriate stakeholders on a need-to-know basis.
+        """)
+        
+        # Force user to acknowledge before proceeding
+        csam_acknowledge = st.checkbox("I acknowledge these guidelines and confirm this report does NOT contain illegal media")
+        
+        return csam_acknowledge
+    return True
+
+def generate_machine_readable_output(form_data):
+    """Generate machine-readable JSON-LD output following Kevin's template"""
+    json_ld = {
+        "@context": "https://schema.org",
+        "@type": "AIFlawReport",
+        "reportId": form_data.get("Report ID"),
+        "dateCreated": datetime.now().isoformat(),
+        "reportStatus": form_data.get("Report Status"),
+        "reportTypes": form_data.get("Report Types", []),
+        "basicInformation": {
+            "reporterId": form_data.get("Reporter ID"),
+            "sessionId": form_data.get("Session ID"),
+            "flawTimestampStart": form_data.get("Flaw Timestamp Start"),
+            "flawTimestampEnd": form_data.get("Flaw Timestamp End"),
+            "systems": form_data.get("Systems", [])
+        },
+        "commonFields": {
+            "contextInfo": form_data.get("Context Info"),
+            "flawDescription": form_data.get("Flaw Description"),
+            "policyViolation": form_data.get("Policy Violation"),
+            "severity": form_data.get("Severity"),
+            "prevalence": form_data.get("Prevalence"),
+            "impacts": form_data.get("Impacts", []),
+            "impactedStakeholders": form_data.get("Impacted Stakeholder(s)", []),
+            "riskSource": form_data.get("Risk Source", []),
+            "bountyEligibility": form_data.get("Bounty Eligibility")
+        },
+        "disclosurePlan": {
+            "disclosureIntent": form_data.get("Disclosure Intent"),
+            "disclosureTimeline": form_data.get("Disclosure Timeline"),
+            "disclosureChannels": form_data.get("Disclosure Channels", []),
+            "embargoRequest": form_data.get("Embargo Request")
+        }
+    }
+    
+    # Report-type specific sections
+    if "Real-World Events" in form_data.get("Report Types", []):
+        json_ld["realWorldEvent"] = {
+            "incidentDescription": form_data.get("Description of the Incident(s)"),
+            "implicatedSystems": form_data.get("Implicated Systems"),
+            "submitterRelationship": form_data.get("Submitter Relationship"),
+            "eventDates": form_data.get("Event Date(s)"),
+            "eventLocations": form_data.get("Event Location(s)"),
+            "experiencedHarmTypes": form_data.get("Experienced Harm Types", []),
+            "experiencedHarmSeverity": form_data.get("Experienced Harm Severity"),
+            "harmNarrative": form_data.get("Harm Narrative")
+        }
+    
+    if "Malign Actor" in form_data.get("Report Types", []):
+        json_ld["malignActor"] = {
+            "tactics": form_data.get("Tactic Select", []),
+            "impact": form_data.get("Impact", [])
+        }
+    
+    if "Security Incident Report" in form_data.get("Report Types", []):
+        json_ld["securityIncident"] = {
+            "threatActorIntent": form_data.get("Threat Actor Intent"),
+            "detection": form_data.get("Detection", [])
+        }
+    
+    if "Vulnerability Report" in form_data.get("Report Types", []):
+        json_ld["vulnerability"] = {
+            "proofOfConcept": form_data.get("Proof-of-Concept Exploit")
+        }
+    
+    if "Hazard Report" in form_data.get("Report Types", []):
+        json_ld["hazard"] = {
+            "examples": form_data.get("Examples"),
+            "replicationPacket": form_data.get("Replication Packet"),
+            "statisticalArgument": form_data.get("Statistical Argument")
+        }
+    
+    return json_ld
+
+def create_db_connection():
+    """Create a connection to the PostgreSQL database"""
+    try:
+        conn = psycopg2.connect(
+            dbname=DB_CONFIG["dbname"],
+            user=DB_CONFIG["user"],
+            password=DB_CONFIG["password"],
+            host=DB_CONFIG["host"],
+            port=DB_CONFIG["port"]
+        )
+        return conn
+    except psycopg2.Error as e:
+        st.error(f"Database connection error: {e}")
+        return None
+
+def initialize_database():
+    """Create necessary tables if they don't exist"""
+    conn = create_db_connection()
+    if conn is None:
+        st.warning("Using local storage fallback since database connection failed.")
+        return False
+    
+    try:
+        with conn.cursor() as cur:
+            # Create main reports table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS flaw_reports (
+                    id SERIAL PRIMARY KEY,
+                    report_id VARCHAR(50) UNIQUE NOT NULL,
+                    report_data JSONB NOT NULL,
+                    machine_readable_data JSONB NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
+            # Create recipients table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS report_recipients (
+                    id SERIAL PRIMARY KEY,
+                    report_id VARCHAR(50) REFERENCES flaw_reports(report_id),
+                    recipient_name VARCHAR(255) NOT NULL,
+                    recipient_type VARCHAR(50) NOT NULL,
+                    recipient_contact TEXT NOT NULL,
+                    status VARCHAR(50) DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
+            # Create files table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS report_files (
+                    id SERIAL PRIMARY KEY,
+                    report_id VARCHAR(50) REFERENCES flaw_reports(report_id),
+                    file_name VARCHAR(255) NOT NULL,
+                    file_path TEXT NOT NULL,
+                    file_type VARCHAR(100),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            
+            conn.commit()
+            return True
+    except psycopg2.Error as e:
+        st.error(f"Database initialization error: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def save_to_database(form_data, machine_readable_output):
+    """Save report to PostgreSQL database"""
+    conn = create_db_connection()
+    report_id = form_data.get("Report ID")
+    
+    if conn is None:
+        # Fallback to local file storage if database connection fails
+        st.warning("Database connection failed. Saving to local file as fallback.")
+        return save_to_local_file(form_data, machine_readable_output)
+    
+    try:
+        with conn.cursor() as cur:
+            # Insert main report
+            cur.execute("""
+                INSERT INTO flaw_reports (report_id, report_data, machine_readable_data)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (report_id) 
+                DO UPDATE SET 
+                    report_data = EXCLUDED.report_data,
+                    machine_readable_data = EXCLUDED.machine_readable_data,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING id;
+            """, (
+                report_id,
+                Json(form_data),
+                Json(machine_readable_output)
+            ))
+            
+            report_db_id = cur.fetchone()[0]
+            
+            recipients = determine_report_recipients(form_data)
+            if recipients:
+                cur.execute("""
+                    DELETE FROM report_recipients WHERE report_id = %s;
+                """, (report_id,))
+                
+                # Insert new recipients
+                for recipient in recipients:
+                    cur.execute("""
+                        INSERT INTO report_recipients 
+                        (report_id, recipient_name, recipient_type, recipient_contact)
+                        VALUES (%s, %s, %s, %s);
+                    """, (
+                        report_id,
+                        recipient.get("name"),
+                        recipient.get("type"),
+                        recipient.get("contact")
+                    ))
+            
+            if "Uploaded File Paths" in form_data:
+                cur.execute("""
+                    DELETE FROM report_files WHERE report_id = %s;
+                """, (report_id,))
+                
+                # Insert new file records
+                for file_path in form_data.get("Uploaded File Paths", []):
+                    file_name = os.path.basename(file_path)
+                    file_type = os.path.splitext(file_name)[1].lstrip('.')
+                    
+                    cur.execute("""
+                        INSERT INTO report_files 
+                        (report_id, file_name, file_path, file_type)
+                        VALUES (%s, %s, %s, %s);
+                    """, (
+                        report_id,
+                        file_name,
+                        file_path,
+                        file_type
+                    ))
+            
+            conn.commit()
+            return report_id
+    except psycopg2.Error as e:
+        st.error(f"Database error: {e}")
+        conn.rollback()
+        # Fallback to local file storage
+        return save_to_local_file(form_data, machine_readable_output)
+    finally:
+        conn.close()
+
+def save_to_local_file(form_data, machine_readable_output):
+    """Fallback function to save report to a local file"""
+    report_id = form_data.get("Report ID")
+    
+    os.makedirs("reports", exist_ok=True)
+    
+    file_path = os.path.join("reports", f"report_{report_id}.json")
+    with open(file_path, "w") as f:
+        json.dump({
+            "form_data": form_data,
+            "machine_readable": machine_readable_output,
+            "timestamp": datetime.now().isoformat()
+        }, f, indent=4)
+    
+    return file_path
+
+def get_report_from_database(report_id):
+    """Retrieve a report from the database by its ID"""
+    conn = create_db_connection()
+    if conn is None:
+        return None
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT report_data, machine_readable_data 
+                FROM flaw_reports 
+                WHERE report_id = %s;
+            """, (report_id,))
+            
+            result = cur.fetchone()
+            if not result:
+                return None
+                
+            report_data, machine_readable_data = result
+            return {
+                "form_data": report_data,
+                "machine_readable": machine_readable_data
+            }
+    except psycopg2.Error as e:
+        st.error(f"Database error when retrieving report: {e}")
+        return None
+    finally:
+        conn.close()
+
+def get_report_recipients_from_database(report_id):
+    """Retrieve recipients for a report from the database"""
+    conn = create_db_connection()
+    if conn is None:
+        return []
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT recipient_name, recipient_type, recipient_contact, status
+                FROM report_recipients 
+                WHERE report_id = %s;
+            """, (report_id,))
+            
+            recipients = []
+            for row in cur.fetchall():
+                recipients.append({
+                    "name": row[0],
+                    "type": row[1],
+                    "contact": row[2],
+                    "status": row[3]
+                })
+                
+            return recipients
+    except psycopg2.Error as e:
+        st.error(f"Database error when retrieving recipients: {e}")
+        return []
+    finally:
+        conn.close()
+
+def update_recipient_status(report_id, recipient_name, status):
+    """Update the status of a recipient for a report"""
+    conn = create_db_connection()
+    if conn is None:
+        return False
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE report_recipients
+                SET status = %s
+                WHERE report_id = %s AND recipient_name = %s;
+            """, (status, report_id, recipient_name))
+            
+            conn.commit()
+            return True
+    except psycopg2.Error as e:
+        st.error(f"Database error when updating recipient status: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+def determine_report_recipients(form_data):
+    """Determine appropriate recipients for the report based on form data"""
+    recipients = []
+    
+    systems = form_data.get("Systems", [])
+    for system in systems:
+        if "OpenAI" in system or "GPT" in system:
+            recipients.append({
+                "name": "OpenAI",
+                "type": "Developer",
+                "contact": "https://openai.com/security/vulnerability-reporting"
+            })
+        elif "Anthropic" in system or "Claude" in system:
+            recipients.append({
+                "name": "Anthropic", 
+                "type": "Developer",
+                "contact": "https://www.anthropic.com/security"
+            })
+        elif "Google" in system or "Gemini" in system or "Bard" in system:
+            recipients.append({
+                "name": "Google", 
+                "type": "Developer",
+                "contact": "https://bughunters.google.com/"
+            })
+        elif "Meta" in system or "Llama" in system:
+            recipients.append({
+                "name": "Meta", 
+                "type": "Developer",
+                "contact": "https://www.facebook.com/whitehat"
+            })
+    
+    if "CSAM" in form_data.get("Experienced Harm Types", []):
+        recipients.append({
+            "name": "National Center for Missing & Exploited Children (NCMEC)",
+            "type": "Authority",
+            "contact": "https://report.cybertip.org/"
+        })
+        recipients.append({
+            "name": "Internet Watch Foundation (IWF)",
+            "type": "Authority",
+            "contact": "https://report.iwf.org.uk/"
+        })
+    
+    if form_data.get("Severity") in ["Critical", "High"]:
+        if "Security Incident Report" in form_data.get("Report Types", []):
+            recipients.append({
+                "name": "CERT Coordination Center",
+                "type": "Authority",
+                "contact": "https://www.kb.cert.org/vuls/report/"
+            })
+            recipients.append({
+                "name": "CISA",
+                "type": "Authority",
+                "contact": "https://www.cisa.gov/report"
+            })
+    
+    if "Real-World Events" in form_data.get("Report Types", []):
+        recipients.append({
+            "name": "AI Incident Database",
+            "type": "Database",
+            "contact": "https://incidentdatabase.ai/submit"
+        })
+    
+    return recipients
+
+def display_report_recipients(recipients):
+    """Display the recommended recipients for the report with correct pluralization"""
+    st.subheader("Recommended Report Recipients")
+    
+    if not recipients:
+        st.write("No specific recipients determined for this report.")
+        return
+    
+    grouped_recipients = {}
+    for recipient in recipients:
+        recipient_type = recipient.get("type", "Other")
+        if recipient_type not in grouped_recipients:
+            grouped_recipients[recipient_type] = []
+        grouped_recipients[recipient_type].append(recipient)
+    
+    for recipient_type, recipients_list in grouped_recipients.items():
+        if recipient_type == "Authority":
+            plural_type = "Authorities"
+        elif recipient_type.endswith("y"):
+            plural_type = f"{recipient_type[:-1]}ies"  
+        elif recipient_type.endswith("s"):
+            plural_type = f"{recipient_type}es"
+        else:
+            plural_type = f"{recipient_type}s"
+            
+        st.write(f"**{plural_type}:**")
+        for recipient in recipients_list:
+            st.markdown(f"- [{recipient['name']}]({recipient['contact']})")
 
 def create_app():
-    """Main function to create the Streamlit app"""
+    """Main function to create the Streamlit app with database integration"""
     st.set_page_config(page_title="AI Flaw Report Form", layout="wide")
+    
+    # Initialize database tables
+    db_initialized = initialize_database()
+    if not db_initialized:
+        st.sidebar.warning("Using local storage mode. Database connection not available.")
+    else:
+        st.sidebar.success("Connected to PostgreSQL database.")
     
     # Handle the complete reset if needed
     if st.session_state.get('_needs_complete_reset', False):
@@ -510,7 +1055,6 @@ def create_app():
     if st.button("Reset Form", type="secondary"):
         reset_form()
     
-    # Display form sections
     basic_info = display_basic_information()
     common_fields = display_common_fields()
     display_file_upload()
@@ -541,6 +1085,11 @@ def create_app():
             if "Real-World Events" in report_types:
                 real_world_fields = display_real_world_event_fields()
                 st.session_state.form_data.update(real_world_fields)
+                
+                # Check if CSAM is selected as a harm type
+                csam_acknowledged = check_csam_harm_selected(real_world_fields.get("Experienced Harm Types", []))
+            else:
+                csam_acknowledged = True  # No Real-World Events section, so no CSAM check needed
             
             # Malign Actor fields
             if "Malign Actor" in report_types:
@@ -562,6 +1111,10 @@ def create_app():
                 hazard_fields = display_hazard_fields()
                 st.session_state.form_data.update(hazard_fields)
             
+            # Add public disclosure plan fields
+            disclosure_plan = display_disclosure_plan()
+            st.session_state.form_data.update(disclosure_plan)
+            
             # Add "Report Types" to the form data
             st.session_state.form_data["Report Types"] = report_types
             
@@ -572,7 +1125,11 @@ def create_app():
             # Submit button with enhanced styling
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                submit_button = st.button("Submit Report", type="primary", use_container_width=True)
+                # Only allow submission if CSAM acknowledgment is completed (if applicable)
+                submit_button = st.button("Submit Report", type="primary", use_container_width=True, disabled=not csam_acknowledged)
+                if not csam_acknowledged:
+                    st.warning("You must acknowledge the CSAM reporting guidelines before submitting.")
+                
                 if st.button("Reset Form", type="secondary", use_container_width=True):
                     reset_form()
                 
@@ -602,6 +1159,9 @@ def create_app():
                 if "Hazard Report" in report_types:
                     required_fields.extend(["Examples", "Replication Packet", "Statistical Argument"])
                 
+                # Add disclosure plan required field
+                required_fields.append("Disclosure Intent")
+                
                 # Combine all data for validation
                 all_data = {**st.session_state.common_data, **st.session_state.form_data}
                 
@@ -621,12 +1181,6 @@ def create_app():
     # Display submission results if form was submitted
     if st.session_state.submission_status:
         show_report_submission_results(st.session_state.form_data)
-        
-        # # Add another reset button at the bottom when showing results
-        # reset_col1, reset_col2 = st.columns([3, 1])
-        # with reset_col2:
-        #     if st.button("Create New Report", type="primary"):
-        #         reset_form()
 
 if __name__ == "__main__":
     create_app()

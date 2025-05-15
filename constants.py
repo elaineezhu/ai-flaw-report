@@ -25,19 +25,19 @@ REPORT_STATUS_OPTIONS = [
 ]
 
 SEVERITY_OPTIONS = [
-    "Critical",
-    "High",
-    "Medium",
+    "Negligible",
     "Low",
-    "Negligible"
+    "Medium",
+    "High",
+    "Critical"
 ]
 
 PREVALENCE_OPTIONS = [
-    "Widespread",
-    "Common",
-    "Occasional",
+    "Unknown",
     "Rare",
-    "Unknown"
+    "Occasional",
+    "Common",
+    "Widespread"
 ]
 
 IMPACT_OPTIONS = [
@@ -80,6 +80,7 @@ HARM_TYPES = [
     "Environmental",
     "Public interest/critical infrastructure",
     "Fundamental rights",
+    "CSAM",
     "Other"
 ]
 
@@ -134,3 +135,5 @@ REPORT_TYPES = [
     "Vulnerability Report",
     "Hazard Report"
 ]
+
+
