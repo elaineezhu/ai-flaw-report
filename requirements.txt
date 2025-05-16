@@ -1,5 +1,6 @@
 pandas
 numpy
 streamlit==1.42.0
-os
 psycopg2
+datasets
+duckdb
