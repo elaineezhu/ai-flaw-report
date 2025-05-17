@@ -1,8 +1,12 @@
 import streamlit as st
 import uuid
 from datetime import datetime
+import os
+import json
 
+from form.form_entry import FormEntry, InputType
 from form.report_type_logic import determine_report_types
+from form import form_sections
 from form.data.validation import validate_required_fields
 from form.data.constants import *
 from form.utils.file_handling import save_uploaded_files
@@ -213,21 +217,25 @@ def display_report_type_classification():
     st.markdown("Please answer the following questions to determine the appropriate report type:")
 
     # Question 1
-    st.segmented_control(
-        "Does this flaw report involve a real-world incident, where some form of harm has already occurred?",
+    real_world_incident_field = FormEntry(
+        name="real_world_incident_radio",
+        title="Does this flaw report involve a real-world incident, where some form of harm has already occurred?",
+        input_type=InputType.SEGMENTED_CONTROL,
         options=["Yes", "No"],
-        key="real_world_incident_radio",
-        on_change=update_real_world_incident_radio
+        help_text="(e.g., injury or harm to people, disruption to infrastructure, violations of laws or rights, or harm to property, or communities)",
+        extra_params={"key": "real_world_incident_radio", "on_change": update_real_world_incident_radio}
     )
-    st.caption("(e.g., injury or harm to people, disruption to infrastructure, violations of laws or rights, or harm to property, or communities)")
+    real_world_incident_field.to_streamlit()
     
     # Question 2
-    st.segmented_control(
-        "Does this flaw report involve a threat actor (i.e. could be exploited with ill intent)?",
+    threat_actor_field = FormEntry(
+        name="threat_actor_radio",
+        title="Does this flaw report involve a threat actor (i.e. could be exploited with ill intent)?",
+        input_type=InputType.SEGMENTED_CONTROL,
         options=["Yes", "No"],
-        key="threat_actor_radio",
-        on_change=update_threat_actor_radio
+        extra_params={"key": "threat_actor_radio", "on_change": update_threat_actor_radio}
     )
+    threat_actor_field.to_streamlit()
 
 def create_app():
     """Main function to create the Streamlit app with database integration"""
@@ -279,19 +287,8 @@ def create_app():
     if st.button("Reset Form", type="secondary"):
         reset_form()
     
-    from form.form_sections import (
-        display_basic_information, 
-        display_common_fields,
-        display_real_world_event_fields,
-        display_malign_actor_fields,
-        display_security_incident_fields,
-        display_vulnerability_fields,
-        display_hazard_fields,
-        display_disclosure_plan
-    )
-    
-    basic_info = display_basic_information()
-    common_fields = display_common_fields()
+    basic_info = form_sections.display_basic_information()
+    common_fields = form_sections.display_common_fields()
     display_file_upload()
     
     st.session_state.common_data = {**basic_info, **common_fields}
@@ -310,39 +307,39 @@ def create_app():
         st.session_state.report_types = report_types
         
         if report_types:
-            st.session_state.form_data = {} 
+            st.session_state.form_data = {}
             
             # Real-World Events fields
             if "Real-World Events" in report_types:
-                real_world_fields = display_real_world_event_fields()
+                real_world_fields = form_sections.display_real_world_event_fields()
                 st.session_state.form_data.update(real_world_fields)
                 
                 csam_acknowledged = check_csam_harm_selected(real_world_fields.get("Experienced Harm Types", []))
             else:
-                csam_acknowledged = True # No Real-World Events section, so no CSAM check needed
+                csam_acknowledged = True  # No Real-World Events section, so no CSAM check needed
             
             # Malign Actor fields
             if "Malign Actor" in report_types:
-                malign_actor_fields = display_malign_actor_fields()
+                malign_actor_fields = form_sections.display_malign_actor_fields()
                 st.session_state.form_data.update(malign_actor_fields)
             
             # Security Incident Report fields
             if "Security Incident Report" in report_types:
-                security_incident_fields = display_security_incident_fields()
+                security_incident_fields = form_sections.display_security_incident_fields()
                 st.session_state.form_data.update(security_incident_fields)
             
             # Vulnerability Report fields
             if "Vulnerability Report" in report_types:
-                vulnerability_fields = display_vulnerability_fields()
+                vulnerability_fields = form_sections.display_vulnerability_fields()
                 st.session_state.form_data.update(vulnerability_fields)
             
             # Hazard Report fields
             if "Hazard Report" in report_types:
-                hazard_fields = display_hazard_fields()
+                hazard_fields = form_sections.display_hazard_fields()
                 st.session_state.form_data.update(hazard_fields)
             
             # Add public disclosure plan fields
-            disclosure_plan = display_disclosure_plan()
+            disclosure_plan = form_sections.display_disclosure_plan()
             st.session_state.form_data.update(disclosure_plan)
             
             st.session_state.form_data["Report Types"] = report_types
@@ -397,7 +394,7 @@ def create_app():
                     if st.session_state.uploaded_files:
                         st.sidebar.info(f"Processing {len(st.session_state.uploaded_files)} uploaded files")
                         file_paths = save_uploaded_files(st.session_state.uploaded_files, report_id=all_data.get("Report ID"))
-                        st.session_state.form_data["Uploaded Files"] = list(file_paths.keys()) 
+                        st.session_state.form_data["Uploaded Files"] = list(file_paths.keys())
                         st.session_state.form_data["Uploaded File Paths"] = list(file_paths.values())
                         
                         # DEBUGGING INFO (Will delete later)

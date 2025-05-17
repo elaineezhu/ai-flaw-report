@@ -1,0 +1,152 @@
+{
+    "form_data": {
+        "Description of the Incident(s)": "dsfasdf",
+        "Implicated Systems": "asdf",
+        "Submitter Relationship": "Affected stakeholder",
+        "Submitter_Relationship_Other": "",
+        "Event Date(s)": "2025-05-17",
+        "Event Location(s)": "asdf",
+        "Experienced Harm Types": [
+            "Public interest/critical infrastructure",
+            "CSAM"
+        ],
+        "Harm_Types_Other": "",
+        "Experienced Harm Severity": "Medium",
+        "Harm Narrative": "asdf",
+        "Tactic Select": [
+            "Credential Access"
+        ],
+        "Tactic_Select_Other": "",
+        "Impact": [
+            "Abuse of system"
+        ],
+        "Impact_Other": "",
+        "Threat Actor Intent": "Deliberate",
+        "Threat_Actor_Intent_Other": "",
+        "Detection": [
+            "User observation"
+        ],
+        "Detection_Other": "",
+        "Disclosure Intent": "Yes",
+        "Disclosure Timeline": "Immediate (0 days)",
+        "Disclosure Channels": [
+            "Conference presentation"
+        ],
+        "Disclosure_Channels_Other": "",
+        "Embargo Request": "fasdf",
+        "Report Types": [
+            "Real-World Events",
+            "Malign Actor",
+            "Security Incident Report"
+        ],
+        "Uploaded Files": [
+            "Class.v"
+        ],
+        "Uploaded File Paths": [
+            "uploads/9aa7ad0f-2e14-4e6d-bebf-a96311c9dac1_Class.v"
+        ],
+        "Reporter ID": "asfdf",
+        "Report ID": "9aa7ad0f-2e14-4e6d-bebf-a96311c9dac1",
+        "Report Status": "New",
+        "Session ID": "adsfasf",
+        "Flaw Timestamp Start": "2025-05-16",
+        "Flaw Timestamp End": "2025-05-16",
+        "Systems": [
+            "v3.0"
+        ],
+        "Systems_Other": "",
+        "Context Info": "awsfawf",
+        "Flaw Description": "awsdefa",
+        "Policy Violation": "asdfasf",
+        "Severity": "High",
+        "Prevalence": "Rare",
+        "Impacts": [
+            "Privacy"
+        ],
+        "Impacts_Other": "",
+        "Impacted Stakeholder(s)": [
+            "General Public"
+        ],
+        "Impacted_Stakeholders_Other": "",
+        "Risk Source": [
+            "Deployment issue"
+        ],
+        "Risk_Source_Other": "",
+        "Bounty Eligibility": "Yes",
+        "Submission Timestamp": "2025-05-17T18:35:24.264640"
+    },
+    "machine_readable": {
+        "@context": "https://schema.org",
+        "@type": "AIFlawReport",
+        "reportId": "9aa7ad0f-2e14-4e6d-bebf-a96311c9dac1",
+        "dateCreated": "2025-05-17T18:35:24.709702",
+        "reportStatus": "New",
+        "reportTypes": [
+            "Real-World Events",
+            "Malign Actor",
+            "Security Incident Report"
+        ],
+        "basicInformation": {
+            "reporterId": "asfdf",
+            "sessionId": "adsfasf",
+            "flawTimestampStart": "2025-05-16",
+            "flawTimestampEnd": "2025-05-16",
+            "systems": [
+                "v3.0"
+            ]
+        },
+        "commonFields": {
+            "contextInfo": "awsfawf",
+            "flawDescription": "awsdefa",
+            "policyViolation": "asdfasf",
+            "severity": "High",
+            "prevalence": "Rare",
+            "impacts": [
+                "Privacy"
+            ],
+            "impactedStakeholders": [
+                "General Public"
+            ],
+            "riskSource": [
+                "Deployment issue"
+            ],
+            "bountyEligibility": "Yes"
+        },
+        "disclosurePlan": {
+            "disclosureIntent": "Yes",
+            "disclosureTimeline": "Immediate (0 days)",
+            "disclosureChannels": [
+                "Conference presentation"
+            ],
+            "embargoRequest": "fasdf"
+        },
+        "realWorldEvent": {
+            "incidentDescription": "dsfasdf",
+            "implicatedSystems": "asdf",
+            "submitterRelationship": "Affected stakeholder",
+            "eventDates": "2025-05-17",
+            "eventLocations": "asdf",
+            "experiencedHarmTypes": [
+                "Public interest/critical infrastructure",
+                "CSAM"
+            ],
+            "experiencedHarmSeverity": "Medium",
+            "harmNarrative": "asdf"
+        },
+        "malignActor": {
+            "tactics": [
+                "Credential Access"
+            ],
+            "impact": [
+                "Abuse of system"
+            ]
+        },
+        "securityIncident": {
+            "threatActorIntent": "Deliberate",
+            "detection": [
+                "User observation"
+            ]
+        }
+    },
+    "timestamp": "2025-05-17T18:35:24.710648"
+}

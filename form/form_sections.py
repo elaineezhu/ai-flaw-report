@@ -1,36 +1,81 @@
 import streamlit as st
 from form.utils.helpers import handle_other_option
 from form.data.constants import *
+from form.form_entry import FormEntry, InputType
+import uuid
 
 def display_basic_information():
-    """Display and gather basic information section"""
+    """Display and gather basic information section using FormEntry"""
     st.subheader("Basic Information")
     
     with st.container():
         col1, col2 = st.columns(2)
         
         with col1:
-            reporter_id = st.text_input("Reporter ID (anonymous or real identity)", 
-                                      help="Required field")
+            reporter_field = FormEntry(
+                name="Reporter ID",
+                title="Reporter ID (anonymous or real identity)",
+                input_type=InputType.TEXT,
+                help_text="Required field",
+                required=True
+            )
+            reporter_id = reporter_field.to_streamlit()
             
-            st.text_input("Report ID", st.session_state.report_id, disabled=True)
+            report_id_field = FormEntry(
+                name="Report ID",
+                title="Report ID",
+                input_type=InputType.TEXT,
+                default=st.session_state.report_id,
+                extra_params={"disabled": True}
+            )
+            report_id = report_id_field.to_streamlit()
             
-            systems = st.multiselect("Systems", options=SYSTEM_OPTIONS)
+            systems_field = FormEntry(
+                name="Systems",
+                title="Systems",
+                input_type=InputType.MULTISELECT,
+                options=SYSTEM_OPTIONS
+            )
+            systems = systems_field.to_streamlit()
             systems_other = handle_other_option(systems, systems, "Please specify other systems:")
         
         with col2:
-            report_status = st.selectbox("Report Status", options=REPORT_STATUS_OPTIONS)
-            session_id = st.text_input("Session ID", help="Optional")
+            status_field = FormEntry(
+                name="Report Status",
+                title="Report Status",
+                input_type=InputType.SELECT,
+                options=REPORT_STATUS_OPTIONS
+            )
+            report_status = status_field.to_streamlit()
             
+            session_field = FormEntry(
+                name="Session ID",
+                title="Session ID",
+                input_type=InputType.TEXT,
+                help_text="Optional"
+            )
+            session_id = session_field.to_streamlit()
+            
+            # Timestamps side by side within column 2
             timestamp_col1, timestamp_col2 = st.columns(2)
             with timestamp_col1:
-                flaw_timestamp_start = st.date_input("Flaw Timestamp Start")
+                start_date_field = FormEntry(
+                    name="Flaw Timestamp Start",
+                    title="Flaw Timestamp Start",
+                    input_type=InputType.DATE
+                )
+                flaw_timestamp_start = start_date_field.to_streamlit()
             with timestamp_col2:
-                flaw_timestamp_end = st.date_input("Flaw Timestamp End")
+                end_date_field = FormEntry(
+                    name="Flaw Timestamp End",
+                    title="Flaw Timestamp End",
+                    input_type=InputType.DATE
+                )
+                flaw_timestamp_end = end_date_field.to_streamlit()
     
     return {
         "Reporter ID": reporter_id,
-        "Report ID": st.session_state.report_id,
+        "Report ID": report_id,
         "Report Status": report_status,
         "Session ID": session_id,
         "Flaw Timestamp Start": flaw_timestamp_start.isoformat() if flaw_timestamp_start else None,
