@@ -1,0 +1,108 @@
+{
+    "form_data": {
+        "Description of the Incident(s)": "asfasf",
+        "Implicated Systems": "afsdf",
+        "Submitter Relationship": "Affected stakeholder",
+        "Submitter_Relationship_Other": "",
+        "Event Date(s)": "2025-05-19",
+        "Event Location(s)": "dasf",
+        "Experienced Harm Types": [
+            "CSAM"
+        ],
+        "Harm_Types_Other": "",
+        "Experienced Harm Severity": "Low",
+        "Harm Narrative": "dsafaswdfadsf",
+        "Tactic Select": [
+            "Credential Access"
+        ],
+        "Tactic_Select_Other": "",
+        "Impact": [
+            "Integrity violation"
+        ],
+        "Impact_Other": "",
+        "Threat Actor Intent": "Deliberate",
+        "Threat_Actor_Intent_Other": "",
+        "Detection": [
+            "Monitoring"
+        ],
+        "Detection_Other": "",
+        "Disclosure Intent": "Yes",
+        "Disclosure Timeline": "Immediate (0 days)",
+        "Disclosure Channels": [
+            "Social media"
+        ],
+        "Disclosure_Channels_Other": "",
+        "Embargo Request": "asdfasdf",
+        "Report Types": [
+            "Real-World Events",
+            "Malign Actor",
+            "Security Incident Report"
+        ],
+        "Report ID": "c2dc906e-0707-4295-a226-e9ba5d8322f1"
+    },
+    "machine_readable": {
+        "@context": "https://schema.org",
+        "@type": "AIFlawReport",
+        "reportId": "c2dc906e-0707-4295-a226-e9ba5d8322f1",
+        "dateCreated": "2025-05-19T17:18:29.956419",
+        "reportStatus": null,
+        "reportTypes": [
+            "Real-World Events",
+            "Malign Actor",
+            "Security Incident Report"
+        ],
+        "basicInformation": {
+            "reporterId": null,
+            "sessionId": null,
+            "flawTimestampStart": null,
+            "flawTimestampEnd": null,
+            "systems": []
+        },
+        "commonFields": {
+            "contextInfo": null,
+            "flawDescription": null,
+            "policyViolation": null,
+            "severity": null,
+            "prevalence": null,
+            "impacts": [],
+            "impactedStakeholders": [],
+            "riskSource": [],
+            "bountyEligibility": null
+        },
+        "disclosurePlan": {
+            "disclosureIntent": "Yes",
+            "disclosureTimeline": "Immediate (0 days)",
+            "disclosureChannels": [
+                "Social media"
+            ],
+            "embargoRequest": "asdfasdf"
+        },
+        "realWorldEvent": {
+            "incidentDescription": "asfasf",
+            "implicatedSystems": "afsdf",
+            "submitterRelationship": "Affected stakeholder",
+            "eventDates": "2025-05-19",
+            "eventLocations": "dasf",
+            "experiencedHarmTypes": [
+                "CSAM"
+            ],
+            "experiencedHarmSeverity": "Low",
+            "harmNarrative": "dsafaswdfadsf"
+        },
+        "malignActor": {
+            "tactics": [
+                "Credential Access"
+            ],
+            "impact": [
+                "Integrity violation"
+            ]
+        },
+        "securityIncident": {
+            "threatActorIntent": "Deliberate",
+            "detection": [
+                "Monitoring"
+            ]
+        }
+    },
+    "timestamp": "2025-05-19T17:18:29.958180"
+}
