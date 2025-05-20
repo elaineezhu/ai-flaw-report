@@ -3,6 +3,7 @@ from form.utils.helpers import handle_other_option
 from form.data.constants import *
 from form.form_entry import FormEntry, InputType
 import uuid
+from form.data.hf_get_models import get_systems_options
 
 def display_basic_information():
     """Display and gather basic information section using FormEntry"""
@@ -16,7 +17,7 @@ def display_basic_information():
                 name="Reporter ID",
                 title="Reporter ID (anonymous or real identity)",
                 input_type=InputType.TEXT,
-                help_text="Required field",
+                help_text="Enter your anonymous or real identity.",
                 required=True
             )
             reporter_id = reporter_field.to_streamlit()
@@ -26,15 +27,22 @@ def display_basic_information():
                 title="Report ID",
                 input_type=InputType.TEXT,
                 default=st.session_state.report_id,
+                help_text="This automatically generated report ID allows us to keep track of the submission when it is processed. The report ID can be referenced in future submissions and mitigation efforts.",
                 extra_params={"disabled": True}
             )
             report_id = report_id_field.to_streamlit()
+            
+            # Toggle to enable/disable Hugging Face API (for future debugging if necessary)
+            use_api = st.sidebar.checkbox("Use Hugging Face API for models", value=True)
+            
+            systems_options = get_systems_options(use_api=use_api)
             
             systems_field = FormEntry(
                 name="Systems",
                 title="Systems",
                 input_type=InputType.MULTISELECT,
-                options=SYSTEM_OPTIONS
+                options=systems_options,
+                help_text="Select one or more AI systems and versions involved in the flaw you are reporting."
             )
             systems = systems_field.to_streamlit()
             systems_other = handle_other_option(systems, systems, "Please specify other systems:")
@@ -44,7 +52,8 @@ def display_basic_information():
                 name="Report Status",
                 title="Report Status",
                 input_type=InputType.SELECT,
-                options=REPORT_STATUS_OPTIONS
+                options=REPORT_STATUS_OPTIONS,
+                help_text="This field is auto-filled."
             )
             report_status = status_field.to_streamlit()
             
@@ -52,24 +61,25 @@ def display_basic_information():
                 name="Session ID",
                 title="Session ID",
                 input_type=InputType.TEXT,
-                help_text="Optional"
+                help_text="Enter the session link or session ID for a session that shows the flaw you encountered if available. For example, many chatbots have a \"Share\" feature located at a top that can generate a link that you can share with others so that they have access to your chat. We will not share this link in the public AI flaw database to ensure no private information is accidentally shared too broadly."
             )
             session_id = session_field.to_streamlit()
             
-            # Timestamps side by side within column 2
             timestamp_col1, timestamp_col2 = st.columns(2)
             with timestamp_col1:
                 start_date_field = FormEntry(
                     name="Flaw Timestamp Start",
                     title="Flaw Timestamp Start",
-                    input_type=InputType.DATE
+                    input_type=InputType.DATE,
+                    help_text="Enter the date and time when you encountered the flaw, or your best estimation."
                 )
                 flaw_timestamp_start = start_date_field.to_streamlit()
             with timestamp_col2:
                 end_date_field = FormEntry(
                     name="Flaw Timestamp End",
                     title="Flaw Timestamp End",
-                    input_type=InputType.DATE
+                    input_type=InputType.DATE,
+                    help_text="If the flaw occurred multiple times, enter the full time range from the first occurrence to the most recent occurrence."
                 )
                 flaw_timestamp_end = end_date_field.to_streamlit()
     
@@ -89,39 +99,42 @@ def display_common_fields():
     st.subheader("Common Fields")
     
     context_info = st.text_area("Context Info (versions of other software/hardware involved)", 
-                             help="Optional")
+                             help="Enter the versions of other software or hardware systems involved in the flaw if applicable. For example, if you used an open-source model, add information on the hardware you are running it on.")
     
     # Flaw Description and Policy Violation
     flaw_description = st.text_area("Flaw Description (identification, reproduction, how it violates system policies)", 
-                                 help="Required field")
+                                 help="Describe the flaw, how you identified it, how it can be reproduced, and how it violates user expectations of the AI system or AI system policies. Add as much detail as possible to help reproduce and mitigate the flaw.")
     
     policy_violation = st.text_area("Policy Violation (how expectations of the system are violated)", 
-                                 help="Required field")
+                                 help="Point to relevant evidence that shows how the expectations of the system are violated or undocumented, for example by pointing to the terms of use, acceptable use policy, system card, or other documentation. Policies may be explicitly or implicitly violated.")
     
     # Severity and Prevalence
     col1, col2 = st.columns(2)
     with col1:
-        severity = st.select_slider("Severity", options=SEVERITY_OPTIONS)
+        severity = st.select_slider("Severity", options=SEVERITY_OPTIONS, 
+                                  help="Your best estimate of how negatively stakeholders will be impacted by this flaw in a worst-case scenario.")
     with col2:
-        prevalence = st.select_slider("Prevalence", options=PREVALENCE_OPTIONS)
+        prevalence = st.select_slider("Prevalence", options=PREVALENCE_OPTIONS, 
+                                    help="Your best estimate of how common the flaw may be, i.e. how often the flaw might occur across AI systems.")
     
     # Impacts and Stakeholders
     col1, col2 = st.columns(2)
     with col1:
         impacts = st.multiselect("Impacts", options=IMPACT_OPTIONS, 
-                               help="Required field")
+                               help="Choose one or more impacts that affected stakeholders may experience if the flaw is not addressed.")
         impacts_other = handle_other_option(impacts, impacts, "Please specify other impacts:")
             
     with col2:
         impacted_stakeholders = st.multiselect("Impacted Stakeholder(s)", options=STAKEHOLDER_OPTIONS, 
-                                             help="Required field")
+                                             help="Choose one or more impacted stakeholders who may suffer if the flaw is not addressed.")
         impacted_stakeholders_other = handle_other_option(impacted_stakeholders, impacted_stakeholders, 
                                                       "Please specify other impacted stakeholders:")
     
     # Risk Source and Bounty Eligibility
     col1, col2 = st.columns(2)
     with col1:
-        risk_source = st.multiselect("Risk Source", options=RISK_SOURCE_OPTIONS)
+        risk_source = st.multiselect("Risk Source", options=RISK_SOURCE_OPTIONS, 
+                                   help="Choose one or more presumed sources of the flaw.")
         risk_source_other = handle_other_option(risk_source, risk_source, "Please specify other risk sources:")
             
     with col2:
@@ -151,34 +164,37 @@ def display_real_world_event_fields():
         
         with col1:
             incident_description = st.text_area("Description of the Incident(s)", 
-                                             help="Required field")
+                                             help="Describe the specific real-world event(s) that have occurred where this flaw caused harm, and what harm it caused.")
             implicated_systems = st.text_area("Implicated Systems", 
-                                           help="Required field")
+                                           help="Name any systems beyond the ones listed above that were involved in the real-world event(s).")
         
         with col2:
             submitter_relationship = st.selectbox("Submitter Relationship", 
-                                               options=["Affected stakeholder", "Independent observer", "System developer", "Other"])
+                                               options=["Affected stakeholder", "Independent observer", "System developer", "Other"],
+                                               help="Describe your relationship to the event.")
             submitter_relationship_other = handle_other_option(submitter_relationship, submitter_relationship, 
                                                              "Please specify your relationship:")
                 
-            event_dates = st.date_input("Event Date(s)")
+            event_dates = st.date_input("Event Date(s)", 
+                                      help="Enter the date and time when the real-world event occurred, or your best estimation. If the real-world event occurred multiple times, enter the full time range from the first occurrence to the most recent occurrence.")
             event_locations = st.text_input("Event Location(s)", 
-                                         help="Required field")
+                                         help="Enter the geographical location in which the real-world event occurred.")
     
     with st.container():
         col1, col2 = st.columns(2)
         
         with col1:
             experienced_harm_types = st.multiselect("Experienced Harm Types", options=HARM_TYPES, 
-                                                  help="Required field")
+                                                  help="Choose one or more types of harm that resulted from the real-world event(s) involving this flaw.")
             harm_types_other = handle_other_option(experienced_harm_types, experienced_harm_types, 
                                                 "Please specify other harm types:")
         
         with col2:
-            experienced_harm_severity = st.select_slider("Experienced Harm Severity", options=HARM_SEVERITY_OPTIONS)
+            experienced_harm_severity = st.select_slider("Experienced Harm Severity", options=HARM_SEVERITY_OPTIONS, 
+                                                       help="Your best estimate of how severe the harm caused is.")
     
     harm_narrative = st.text_area("Harm Narrative (justification of why the event constitutes harm)", 
-                               help="Required field")
+                               help="Please describe why the real-world event that occurred is harmful, and how the flaw contributed to it.")
     
     return {
         "Description of the Incident(s)": incident_description,
@@ -200,12 +216,12 @@ def display_malign_actor_fields():
     col1, col2 = st.columns(2)
     with col1:
         tactic_select = st.multiselect("Tactic Select (e.g., from MITRE's ATLAS Matrix)", options=TACTIC_OPTIONS, 
-                                     help="Required field")
+                                     help="Choose one or more tactic that could be used to exploit the flaw.")
         tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
             
     with col2:
         impact = st.multiselect("Impact", options=IMPACT_TYPE_OPTIONS, 
-                              help="Required field")
+                              help="Describe the potential impact of the flaw.")
         impact_other = handle_other_option(impact, impact, "Please specify other impacts:")
     
     return {
@@ -221,13 +237,14 @@ def display_security_incident_fields():
     
     col1, col2 = st.columns(2)
     with col1:
-        threat_actor_intent = st.radio("Threat Actor Intent", options=THREAT_ACTOR_INTENT_OPTIONS)
+        threat_actor_intent = st.radio("Threat Actor Intent", options=THREAT_ACTOR_INTENT_OPTIONS, 
+                                     help="Describe the intent of the threat actor.")
         threat_actor_intent_other = handle_other_option(threat_actor_intent, threat_actor_intent, 
                                                      "Please specify other threat actor intent:")
             
     with col2:
         detection = st.multiselect("Detection", options=DETECTION_METHODS, 
-                                 help="Required field")
+                                 help="Describe how you came to know about this real-world event, including which methods you used to discover and observe it.")
         detection_other = handle_other_option(detection, detection, "Please specify other detection methods:")
     
     return {
@@ -242,7 +259,7 @@ def display_vulnerability_fields():
     st.subheader("Vulnerability Details")
     
     proof_of_concept = st.text_area("Proof-of-Concept Exploit", 
-                                 help="Required field")
+                                 help="Provide code and documentation that proves the existence of a vulnerability.")
     
     return {
         "Proof-of-Concept Exploit": proof_of_concept
@@ -253,13 +270,13 @@ def display_hazard_fields():
     st.subheader("Hazard Details")
     
     examples = st.text_area("Examples (list of system inputs/outputs)", 
-                          help="Required field")
+                          help="Provide a list of system inputs/outputs that help understand how to replicate the flaw.")
     
     replication_packet = st.text_area("Replication Packet (files evidencing the flaw)", 
-                                   help="Required field")
+                                   help="Provide data that helps replicate the flaw, e.g. test data, custom evaluations or structured datasets used.")
     
     statistical_argument = st.text_area("Statistical Argument (supporting evidence of a flaw)", 
-                                     help="Required field")
+                                     help="Provide your reasoning why this flaw is statistically likely to occur and not a one-off event.")
     
     return {
         "Examples": examples,

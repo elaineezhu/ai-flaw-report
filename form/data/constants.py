@@ -6,6 +6,62 @@ SYSTEM_VERSIONS = [
     "Other"
 ]
 
+PRIORITY_MODELS = [
+    # Text models
+    "GPT-4.5-Preview",
+    "o3-mini",
+    "o1",
+    "GPT-4o",
+    "GPT-4",
+    "GPT-3.5-Turbo",
+    "Claude-3.7-Sonnet-Reasoning",
+    "Claude-3.7-Sonnet",
+    "Claude-3.5-Sonnet",
+    "Claude-3",
+    "Claude-instant",
+    "Claude-2",
+    "Gemini-2.0",
+    "Gemini-1.5",
+    "Gemini-1.0",
+    "DeepSeek-R1",
+    "DeepSeek-V3",
+    "Grok-2",
+    "Grok-beta",
+
+    # Image models
+    "FLUX-pro-1.1-ultra",
+    "FLUX-pro-1.1",
+    "FLUX-pro",
+    "FLUX-schnell",
+    "FLUX-dev",
+    "Imagen3",
+    "Luma-Photon",
+    "DALL-E-3",
+    "StableDiffusion3.5",
+    "StableDiffusion3",
+    "StableDiffusionXL",
+    "Playground-v3",
+    "Playground-v2.5",
+    "Ideogram-v2",
+    "Ideogram",
+    "Other",
+
+    # Video models
+    "Runway",
+    "Ray2",
+    "Dream-Machine",
+    "Pika-2.0",
+    "Pika-1.5",
+    "Pika-1.0",
+    "Hailuo-AI",
+    "Kling-Pro-v1.5",
+    "HunyuanVideo",
+    "Haiper2.0",
+    "Veo-2",
+    "Other",
+]
+
+
 SYSTEM_OPTIONS = [
     "v1.0",
     "v1.1",

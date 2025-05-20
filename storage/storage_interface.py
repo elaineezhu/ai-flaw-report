@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import streamlit as st
 import os
 import json
+import tempfile
 from datetime import datetime
 from form.data.schema import generate_machine_readable_output
 
@@ -54,89 +55,148 @@ class StorageProvider(ABC):
         pass
 
 class LocalStorageProvider(StorageProvider):
-    """Provider that stores reports as local files"""
+    """Provider that stores reports as local files in a temporary directory"""
+    
+    def __init__(self):
+        """Initialize with a temp directory that's writable"""
+        self.report_dir = os.path.join(tempfile.gettempdir(), "ai_flaw_reports")
+        self.initialized = False
     
     def initialize(self):
-        """Initialize local storage"""
-        os.makedirs("reports", exist_ok=True)
-        st.sidebar.success("Using local file storage.")
-        return True
+        """Initialize local storage using a temporary directory"""
+        try:
+            os.makedirs(self.report_dir, exist_ok=True)
+            st.sidebar.success(f"Using local file storage in temporary directory: {self.report_dir}")
+            self.initialized = True
+            return True
+        except Exception as e:
+            st.sidebar.error(f"Error initializing local storage: {str(e)}")
+            return False
     
     def save_report(self, form_data):
-        """Save report to a local file"""
+        """Save report to a local file in the temp directory"""
+        if not self.initialized:
+            self.initialize()
+            
         report_id = form_data.get("Report ID")
         machine_readable_output = generate_machine_readable_output(form_data)
         
-        file_path = os.path.join("reports", f"report_{report_id}.json")
-        with open(file_path, "w") as f:
-            json.dump({
+        file_path = os.path.join(self.report_dir, f"report_{report_id}.json")
+        try:
+            with open(file_path, "w") as f:
+                json.dump({
+                    "form_data": form_data,
+                    "machine_readable": machine_readable_output,
+                    "timestamp": datetime.now().isoformat()
+                }, f, indent=4)
+            
+            st.sidebar.success(f"Report saved to: {file_path}")
+            return file_path, machine_readable_output
+        except Exception as e:
+            st.sidebar.error(f"Error saving report: {str(e)}")
+            st.session_state[f"report_{report_id}"] = {
                 "form_data": form_data,
                 "machine_readable": machine_readable_output,
                 "timestamp": datetime.now().isoformat()
-            }, f, indent=4)
-        
-        return file_path, machine_readable_output
+            }
+            st.sidebar.info(f"Fallback: Report stored in session state")
+            return f"session_state:report_{report_id}", machine_readable_output
     
     def get_report(self, report_id):
-        """Retrieve a report from local storage"""
-        file_path = os.path.join("reports", f"report_{report_id}.json")
+        """Retrieve a report from local storage or session state fallback"""
+        if not self.initialized:
+            self.initialize()
+            
+        session_key = f"report_{report_id}"
+        if session_key in st.session_state:
+            st.sidebar.info(f"Retrieved report {report_id} from session state")
+            return st.session_state[session_key]
+        
+        file_path = os.path.join(self.report_dir, f"report_{report_id}.json")
         if not os.path.exists(file_path):
+            st.sidebar.warning(f"Report {report_id} not found")
             return None
         
-        with open(file_path, "r") as f:
-            data = json.load(f)
-        
-        return data
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+            
+            st.sidebar.success(f"Retrieved report from: {file_path}")
+            return data
+        except Exception as e:
+            st.sidebar.error(f"Error reading report file: {str(e)}")
+            return None
     
     def update_report(self, report_id, form_data):
         """Update an existing report in local storage"""
-        # For local storage, this is the same as saving a new report
         self.save_report(form_data)
         return True
     
     def list_reports(self, limit=100):
-        """List all reports in local storage"""
+        """List all reports in local storage and session state"""
+        if not self.initialized:
+            self.initialize()
+            
         reports = []
-        report_dir = "reports"
         
-        if not os.path.exists(report_dir):
-            return reports
-        
-        # Get all JSON files in the reports directory
-        report_files = [f for f in os.listdir(report_dir) if f.endswith(".json")]
-        
-        # Sort by most recent first
-        report_files.sort(key=lambda f: os.path.getmtime(os.path.join(report_dir, f)), reverse=True)
-        
-        # Limit the number of files
-        report_files = report_files[:limit]
-        
-        for file_name in report_files:
+        if os.path.exists(self.report_dir):
             try:
-                with open(os.path.join(report_dir, file_name), "r") as f:
-                    data = json.load(f)
+                report_files = [f for f in os.listdir(self.report_dir) if f.endswith(".json")]
                 
-                # Extract report ID from filename (report_ID.json)
-                report_id = file_name.replace("report_", "").replace(".json", "")
+                # Sort by most recent first
+                try:
+                    report_files.sort(key=lambda f: os.path.getmtime(os.path.join(self.report_dir, f)), reverse=True)
+                except:
+                    pass
                 
-                form_data = data.get("form_data", {})
+                report_files = report_files[:limit]
                 
-                reports.append({
-                    "report_id": report_id,
-                    "report_status": form_data.get("Report Status", "Unknown"),
-                    "report_types": form_data.get("Report Types", []),
-                    "reporter_id": form_data.get("Reporter ID", "Unknown"),
-                    "submission_timestamp": data.get("timestamp", "Unknown")
-                })
+                for file_name in report_files:
+                    try:
+                        with open(os.path.join(self.report_dir, file_name), "r") as f:
+                            data = json.load(f)
+                        
+                        # Extract report ID from filename (report_ID.json)
+                        report_id = file_name.replace("report_", "").replace(".json", "")
+                        
+                        form_data = data.get("form_data", {})
+                        
+                        reports.append({
+                            "report_id": report_id,
+                            "report_status": form_data.get("Report Status", "Unknown"),
+                            "report_types": form_data.get("Report Types", []),
+                            "reporter_id": form_data.get("Reporter ID", "Unknown"),
+                            "submission_timestamp": data.get("timestamp", "Unknown")
+                        })
+                    except Exception as e:
+                        st.sidebar.error(f"Error reading report file {file_name}: {e}")
             except Exception as e:
-                st.error(f"Error reading report file {file_name}: {e}")
+                st.sidebar.error(f"Error listing reports from directory: {str(e)}")
         
-        return reports
+        for key in st.session_state:
+            if key.startswith("report_"):
+                try:
+                    report_id = key.replace("report_", "")
+                    if any(r["report_id"] == report_id for r in reports):
+                        continue 
+                        
+                    data = st.session_state[key]
+                    form_data = data.get("form_data", {})
+                    
+                    reports.append({
+                        "report_id": report_id,
+                        "report_status": form_data.get("Report Status", "Unknown"),
+                        "report_types": form_data.get("Report Types", []),
+                        "reporter_id": form_data.get("Reporter ID", "Unknown"),
+                        "submission_timestamp": data.get("timestamp", "Unknown")
+                    })
+                except Exception as e:
+                    st.sidebar.error(f"Error processing session state report {key}: {str(e)}")
+        
+        return reports[:limit]
 
-# Factory function to get the appropriate storage provider
 def get_storage_provider():
     """Get the configured storage provider"""
-    # Default is HF storage
     provider_name = os.environ.get("STORAGE_PROVIDER", "huggingface").lower()
     
     if provider_name == "local":

@@ -1,40 +1,88 @@
 import os
 import json
-from datetime import datetime
+import io
 import tempfile
-from storage.storage_interface import StorageProvider, LocalStorageProvider
+from datetime import datetime
+import streamlit as st
+import pandas as pd
+from huggingface_hub import HfApi, create_repo, hf_hub_download, list_repo_files
+from storage.storage_interface import StorageProvider
 
 class HuggingFaceStorageProvider(StorageProvider):
-    """Provider that stores reports using Hugging Face Datasets"""
+    """
+    A storage provider that works directly with Hugging Face Hub API
+    (without using the datasets library or local caching)
+    """
     
     def __init__(self, hf_token=None, repo_id=None):
-        """
-        Initialize HuggingFace storage provider
-        
-        Args:
-            hf_token (str): Hugging Face API token (default: from environment variable)
-            repo_id (str): Repository ID for dataset (default: from environment variable)
-        """
-        self.hf_token = hf_token or os.environ.get("HF_TOKEN")
-        self.repo_id = repo_id or os.environ.get("HF_REPO_ID", "default-user/ai-flaw-reports")
-        self.dataset = None
+        """Initialize the provider with token and repo_id"""
+        self.hf_token = hf_token or self._get_token()
+        self.repo_id = repo_id or self._get_repo_id()
         self.initialized = False
+        self.api = None
         self.parquet_file = "reports.parquet"
-        self.local_cache_dir = os.path.join(tempfile.gettempdir(), "hf_dataset_cache")
     
-    def initialize(self):
-        """Initialize connection to Hugging Face Datasets"""
-        import streamlit as st
+    def _get_token(self):
+        """Get HF token from environment variables, secrets, or a fallback method"""
+        token = None
+        
+        token = os.getenv("HF_TOKEN")
+        if token:
+            st.sidebar.success("Successfully loaded HF token from environment variable")
+            return token
         
         try:
-            try:
-                import datasets
-                import duckdb
-                import pandas as pd
-            except ImportError:
-                st.sidebar.error("Required packages not installed. Please install: datasets, duckdb, pandas")
-                return False
+            for secret_name in ["hf_token", "HF_TOKEN", "Hf_Token"]:
+                if secret_name in st.secrets:
+                    token = st.secrets[secret_name]
+                    st.sidebar.success(f"Successfully loaded HF token from Streamlit secrets using key '{secret_name}'")
+                    return token
+        except Exception as e:
+            st.sidebar.info(f"Could not load token from Streamlit secrets: {str(e)}")
             
+        if os.getenv("SPACE_ID"):
+            token = os.getenv("HF_TOKEN_READ")
+            if token:
+                st.sidebar.success("Successfully loaded HF read token from Spaces environment")
+                return token
+        
+        # If we got here, no token was found
+        st.sidebar.warning("No HF token found in any location")
+        return token
+    
+    def _get_repo_id(self):
+        """Get repo ID from environment variables, secrets, or construct from space name"""
+        repo_id = None
+        
+        repo_id = os.getenv("HF_REPO_ID")
+        if repo_id:
+            st.sidebar.success(f"Successfully loaded repo ID from environment variable: {repo_id}")
+            return repo_id
+        
+        try:
+            for secret_name in ["hf_repo_id", "HF_REPO_ID", "Hf_Repo_Id"]:
+                if secret_name in st.secrets:
+                    repo_id = st.secrets[secret_name]
+                    st.sidebar.success(f"Successfully loaded repo ID from Streamlit secrets using key '{secret_name}': {repo_id}")
+                    return repo_id
+        except Exception as e:
+            st.sidebar.info(f"Could not load repo ID from Streamlit secrets: {str(e)}")
+            
+        if os.getenv("SPACE_ID"):
+            space_id = os.getenv("SPACE_ID")
+            if space_id:
+                username = space_id.split("/")[0]
+                constructed_repo_id = f"{username}/ai-flaw-reports"
+                st.sidebar.info(f"Constructed repo ID from Space ID: {constructed_repo_id}")
+                return constructed_repo_id
+        
+        # If we got here, no repo ID was found
+        st.sidebar.warning("No repo ID found in any location")
+        return repo_id
+    
+    def initialize(self):
+        """Initialize the Hugging Face API client"""
+        try:
             if not self.hf_token:
                 st.sidebar.error("Hugging Face token not found. Please set the HF_TOKEN environment variable.")
                 st.sidebar.info("You can get a token from https://huggingface.co/settings/tokens")
@@ -45,372 +93,484 @@ class HuggingFaceStorageProvider(StorageProvider):
                 st.sidebar.info("Format should be 'username/dataset-name' or 'organization/dataset-name'")
                 return False
             
-            os.environ["HF_TOKEN"] = self.hf_token
+            self.api = HfApi(token=self.hf_token)
+            st.sidebar.success("Successfully initialized Hugging Face API client")
             
             try:
-                self.dataset = datasets.load_dataset(
-                    self.repo_id, 
-                    token=self.hf_token,
-                    cache_dir=self.local_cache_dir
+                self.api.repo_info(
+                    repo_id=self.repo_id, 
+                    repo_type="dataset"
                 )
-                st.sidebar.success(f"Connected to Hugging Face dataset: {self.repo_id}")
-                self.initialized = True
-                return True
-            except Exception as e:
-                st.sidebar.warning(f"Dataset connection issue: {e}")
-                # Initialization when dataset doesn't exist or is empty
-                if ("doesn't contain any data files" in str(e) or 
-                    "404" in str(e) or 
-                    "not found" in str(e).lower()): # I'll make sure that this is an extensive enough check of errors
-                    
-                    st.sidebar.info(f"Creating initial dataset structure for {self.repo_id}...")
-                    
-                    initial_data = {
-                        "report_id": ["placeholder"],
-                        "report_status": ["Placeholder"],
-                        "report_types": [["Placeholder"]],
-                        "reporter_id": ["System"],
-                        "submission_timestamp": [datetime.now().isoformat()],
-                        "form_data": [json.dumps({"Placeholder": True})],
-                        "machine_readable": [json.dumps({"@context": "https://schema.org", "@type": "Placeholder"})]
-                    }
-                    
-                    df = pd.DataFrame(initial_data)
-                    initial_dataset = datasets.Dataset.from_pandas(df)
-                    
-                    # Push to Hub to create the initial structure
-                    try:
-                        initial_dataset.push_to_hub(
-                            self.repo_id,
-                            token=self.hf_token,
-                            private=True
-                        )
-                        st.sidebar.success(f"Successfully created initial dataset: {self.repo_id}")
-                        self.initialized = True
-                        self.dataset = initial_dataset
-                        return True
-                    except Exception as init_error:
-                        st.sidebar.error(f"Failed to create initial dataset: {init_error}")
+                st.sidebar.success(f"Connected to existing dataset repository: {self.repo_id}")
+            except Exception as repo_error:
+                st.sidebar.warning(f"Repository does not exist yet: {str(repo_error)}")
+                try:
+                    create_repo(
+                        repo_id=self.repo_id,
+                        token=self.hf_token,
+                        repo_type="dataset",
+                        private=True
+                    )
+                    st.sidebar.success(f"Created new dataset repository: {self.repo_id}")
+                except Exception as create_error:
+                    if "409" in str(create_error):
+                        st.sidebar.info("Repository already exists (409 Conflict)")
+                    else:
+                        st.sidebar.error(f"Failed to create repository: {str(create_error)}")
                         return False
-                else:
-                    st.sidebar.warning(f"Failed to connect to Hugging Face dataset: {e}")
-                    return False
-                
+            
+            self.initialized = True
+            return True
+            
         except Exception as e:
-            st.sidebar.error(f"Error initializing Hugging Face storage: {e}")
+            st.sidebar.error(f"Error initializing Hugging Face provider: {str(e)}")
             return False
     
     def save_report(self, form_data):
-        """Save report to Hugging Face dataset using parquet format"""
-        import streamlit as st
-        
+        """Save a report to the Hugging Face repository"""
+        # Generate a report ID if not provided
         report_id = form_data.get("Report ID")
+        if not report_id:
+            report_id = f"report-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            form_data["Report ID"] = report_id
         
-        # DEBUGGING INFO (Will delete later)
         st.sidebar.info(f"Attempting to save report with ID: {report_id}")
         
-        from form.data.schema import generate_machine_readable_output
-        machine_readable_output = generate_machine_readable_output(form_data)
-        
         if not self.initialized:
-            st.sidebar.warning("HuggingFace storage not initialized. Attempting to initialize...")
-            self.initialize()
-            
-        if not self.initialized:
-            st.sidebar.warning("HuggingFace storage initialization failed. Using local storage.")
-            from storage.storage_interface import LocalStorageProvider
-            local_provider = LocalStorageProvider()
-            return local_provider.save_report(form_data)
+            st.sidebar.warning("Storage provider not initialized. Initializing now...")
+            if not self.initialize():
+                # Store in session state as fallback
+                session_key = f"report_{report_id}"
+                st.session_state[session_key] = {
+                    "form_data": form_data,
+                    "timestamp": datetime.now().isoformat()
+                }
+                st.sidebar.warning(f"Fallback: Report stored in session state due to initialization failure.")
+                return f"session_state:{session_key}", None
         
         try:
-            import datasets
-            import pandas as pd
-            
-            # Save locally as backup -> will delete this later once we I can confirm that HF always works
-            local_path = os.path.join("reports", f"report_{report_id}.json")
-            os.makedirs("reports", exist_ok=True)
+            # Generate machine readable output
+            machine_readable_output = None
+            try:
+                from form.data.schema import generate_machine_readable_output
+                machine_readable_output = generate_machine_readable_output(form_data)
+            except Exception as schema_error:
+                st.sidebar.warning(f"Could not generate machine readable output: {str(schema_error)}")
             
             report_data = {
+                "form_data": form_data,
+                "machine_readable": machine_readable_output,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            report_json = json.dumps(report_data, indent=2)
+            
+            report_path = f"reports/{report_id}.json"
+            
+            try:
+                files = list_repo_files(
+                    repo_id=self.repo_id,
+                    repo_type="dataset",
+                    token=self.hf_token
+                )
+                
+                if not any(f.startswith("reports/") for f in files):
+                    self.api.upload_file(
+                        path_or_fileobj=io.BytesIO(b""),
+                        path_in_repo="reports/.gitkeep",
+                        repo_id=self.repo_id,
+                        repo_type="dataset",
+                        commit_message="Create reports directory"
+                    )
+                    st.sidebar.info("Created reports directory in repository")
+            except Exception as dir_error:
+                st.sidebar.warning(f"Could not verify reports directory: {str(dir_error)}")
+            
+            self.api.upload_file(
+                path_or_fileobj=io.BytesIO(report_json.encode()),
+                path_in_repo=report_path,
+                repo_id=self.repo_id,
+                repo_type="dataset",
+                commit_message=f"Add/update report {report_id}"
+            )
+            
+            st.sidebar.success(f"Successfully saved JSON report to {self.repo_id}/{report_path}")
+            
+            try:
+                self._update_index_file(report_id, form_data)
+            except Exception as index_error:
+                st.sidebar.warning(f"Could not update index file: {str(index_error)}")
+            
+            try:
+                self._update_parquet_file(report_id, form_data, machine_readable_output)
+            except Exception as parquet_error:
+                st.sidebar.warning(f"Could not update Parquet file: {str(parquet_error)}")
+            
+            return f"huggingface:{self.repo_id}/{report_path}", machine_readable_output
+            
+        except Exception as e:
+            st.sidebar.error(f"Error saving report to Hugging Face: {str(e)}")
+            
+            # Store in session state as fallback
+            session_key = f"report_{report_id}"
+            st.session_state[session_key] = {
+                "form_data": form_data,
+                "timestamp": datetime.now().isoformat(),
+                "machine_readable": machine_readable_output
+            }
+            st.sidebar.warning(f"Fallback: Report stored in session state due to error.")
+            
+            return f"session_state:{session_key}", machine_readable_output
+    
+    def _update_index_file(self, report_id, form_data):
+        """Update the index file with the new report information"""
+        index_path = "reports_index.json"
+        
+        index_data = []
+        try:
+            try:
+                existing_index = hf_hub_download(
+                    repo_id=self.repo_id,
+                    filename=index_path,
+                    repo_type="dataset",
+                    token=self.hf_token
+                )
+                
+                with open(existing_index, "r") as f:
+                    index_data = json.load(f)
+                
+                st.sidebar.info(f"Downloaded existing index with {len(index_data)} reports")
+                
+            except Exception as download_error:
+                st.sidebar.info(f"No existing index found, creating new one: {str(download_error)}")
+            
+            index_data = [r for r in index_data if r.get("report_id") != report_id]
+            
+            index_data.append({
                 "report_id": report_id,
-                "report_status": form_data.get("Report Status", "Submitted"),
+                "report_status": form_data.get("Report Status", "Unknown"),
                 "report_types": form_data.get("Report Types", []),
                 "reporter_id": form_data.get("Reporter ID", "Anonymous"),
                 "submission_timestamp": datetime.now().isoformat(),
+                "file_path": f"reports/{report_id}.json"
+            })
+            
+            # Sort by newest first
+            index_data.sort(key=lambda x: x.get("submission_timestamp", ""), reverse=True)
+            
+            index_json = json.dumps(index_data, indent=2)
+            self.api.upload_file(
+                path_or_fileobj=io.BytesIO(index_json.encode()),
+                path_in_repo=index_path,
+                repo_id=self.repo_id,
+                repo_type="dataset",
+                commit_message=f"Update index with report {report_id}"
+            )
+            
+            st.sidebar.success(f"Updated index file with {len(index_data)} reports")
+            
+        except Exception as index_error:
+            st.sidebar.warning(f"Error updating index file: {str(index_error)}")
+    
+    def _update_parquet_file(self, report_id, form_data, machine_readable_output):
+        """Update the Parquet file with the new report data"""
+        try:
+            report_row = {
+                "report_id": report_id,
+                "report_status": form_data.get("Report Status", "Unknown"),
+                "report_types": json.dumps(form_data.get("Report Types", [])),
+                "reporter_id": form_data.get("Reporter ID", "Anonymous"),
+                "submission_timestamp": datetime.now().isoformat(),
                 "form_data": json.dumps(form_data),
-                "machine_readable": json.dumps(machine_readable_output)
+                "machine_readable": json.dumps(machine_readable_output) if machine_readable_output else ""
             }
             
-            st.sidebar.info(f"Report data prepared with status: {report_data['report_status']}")
+            new_df = pd.DataFrame([report_row])
+            st.sidebar.info(f"Prepared new row for Parquet file for report {report_id}")
             
-            with open(local_path, "w") as f:
-                json.dump({
-                    "form_data": form_data,
-                    "machine_readable": machine_readable_output,
-                    "timestamp": datetime.now().isoformat()
-                }, f, indent=4)
-                
-            st.sidebar.success(f"Report saved locally to: {local_path}")
-            
-            df = pd.DataFrame([report_data])
-            
-            st.sidebar.info(f"Created DataFrame with {len(df)} rows. Columns: {', '.join(df.columns)}")
-            
-            if "Uploaded File Paths" in form_data:
-                st.sidebar.info(f"Uploading {len(form_data['Uploaded File Paths'])} files to Hugging Face...")
-                try:
-                    from form.utils.file_handling import upload_files_to_huggingface
-                    uploaded_urls = upload_files_to_huggingface(report_id, self.repo_id, self.hf_token)
+            try:
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    parquet_path = os.path.join(tmp_dir, self.parquet_file)
                     
-                    if uploaded_urls:
-                        st.sidebar.success(f"Successfully uploaded {len(uploaded_urls)} files to Hugging Face")
-                        form_data["Uploaded File URLs"] = uploaded_urls
-                        report_data["form_data"] = json.dumps(form_data)
-                        machine_readable_output["files"] = uploaded_urls
-                        df = pd.DataFrame([report_data])
-                except Exception as e:
-                    st.sidebar.warning(f"Error uploading files to Hugging Face: {e}")
-                    st.sidebar.info("Files are still saved locally and referenced in the report.")
+                    try:
+                        downloaded_file = hf_hub_download(
+                            repo_id=self.repo_id,
+                            filename=self.parquet_file,
+                            repo_type="dataset",
+                            token=self.hf_token,
+                            local_dir=tmp_dir,
+                            local_dir_use_symlinks=False
+                        )
+                        
+                        existing_df = pd.read_parquet(downloaded_file)
+                        st.sidebar.success(f"Downloaded existing Parquet file with {len(existing_df)} rows")
+                        
+                        existing_df = existing_df[existing_df["report_id"] != report_id]
+                        
+                        updated_df = pd.concat([existing_df, new_df], ignore_index=True)
+                        
+                    except Exception as e:
+                        st.sidebar.info(f"No existing Parquet file found, creating new one: {str(e)}")
+                        updated_df = new_df
+                    
+                    updated_df.to_parquet(parquet_path, index=False)
+                    
+                    with open(parquet_path, "rb") as f:
+                        self.api.upload_file(
+                            path_or_fileobj=f,
+                            path_in_repo=self.parquet_file,
+                            repo_id=self.repo_id,
+                            repo_type="dataset",
+                            commit_message=f"Update Parquet file with report {report_id}"
+                        )
+                    
+                    st.sidebar.success(f"Updated Parquet file with {len(updated_df)} reports")
             
-            try:
-                st.sidebar.info(f"Attempting to load existing dataset from {self.repo_id}...")
+            except Exception as download_error:
+                st.sidebar.warning(f"Error handling Parquet file: {str(download_error)}")
                 
-                existing_dataset = datasets.load_dataset(
-                    self.repo_id, 
-                    token=self.hf_token,
-                    cache_dir=self.local_cache_dir
-                )
-                
-                st.sidebar.success(f"Successfully loaded dataset. Found {len(existing_dataset['train'])} existing records.")
-                
-                existing_df = existing_dataset["train"].to_pandas()
-                
-                st.sidebar.info(f"Existing dataset has {len(existing_df)} rows")
-                
-                # Remove placeholder row if present
-                placeholder_count = len(existing_df[existing_df["report_id"] == "placeholder"])
-                if placeholder_count > 0:
-                    st.sidebar.info(f"Removing {placeholder_count} placeholder records")
-                    existing_df = existing_df[existing_df["report_id"] != "placeholder"]
-                
-                # Remove previous version of this report if it exists
-                duplicate_count = len(existing_df[existing_df["report_id"] == report_id])
-                if duplicate_count > 0:
-                    st.sidebar.info(f"Removing {duplicate_count} previous versions of this report")
-                    existing_df = existing_df[existing_df["report_id"] != report_id]
-                
-                updated_df = pd.concat([existing_df, df], ignore_index=True)
-                st.sidebar.info(f"Combined dataset now has {len(updated_df)} rows")
-                
-                updated_dataset = datasets.Dataset.from_pandas(updated_df)
-                
-            except Exception as e:
-                st.sidebar.warning(f"Error handling existing dataset: {e}")
-                st.sidebar.info("Creating new dataset from scratch")
-                # Dataset doesn't exist yet so create new one
-                updated_dataset = datasets.Dataset.from_pandas(df)
-            
-            # Push to Hub
-            st.sidebar.info(f"Pushing dataset to Hugging Face Hub: {self.repo_id}...")
-            
-            # Before pushing, verify dataset structure
-            st.sidebar.info(f"Dataset structure: {updated_dataset}")
-            
-            # Push to Hub with detailed feedback
-            try:
-                push_result = updated_dataset.push_to_hub(
-                    self.repo_id,
-                    token=self.hf_token,
-                    private=True
-                )
-                st.sidebar.success(f"Successfully pushed to Hub. Result: {push_result}")
-            except Exception as push_error:
-                st.sidebar.error(f"Error pushing to Hub: {push_error}")
-                # Try to create it first if there's an error
-                try:
-                    st.sidebar.info("Attempting to create dataset repo first...")
-                    from huggingface_hub import create_repo
-                    create_repo(
-                        self.repo_id, 
-                        token=self.hf_token, 
-                        private=True,
-                        repo_type="dataset"
-                    )
-                    push_result = updated_dataset.push_to_hub(
-                        self.repo_id,
-                        token=self.hf_token,
-                        private=True
-                    )
-                    st.sidebar.success(f"Successfully created repo and pushed dataset: {push_result}")
-                except Exception as create_error:
-                    st.sidebar.error(f"Failed to create repo: {create_error}")
-                    raise
-            
-            return f"huggingface:{self.repo_id}/{report_id}", machine_readable_output
-            
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    parquet_path = os.path.join(tmp_dir, self.parquet_file)
+                    new_df.to_parquet(parquet_path, index=False)
+                    
+                    with open(parquet_path, "rb") as f:
+                        self.api.upload_file(
+                            path_or_fileobj=f,
+                            path_in_repo=self.parquet_file,
+                            repo_id=self.repo_id,
+                            repo_type="dataset",
+                            commit_message=f"Create new Parquet file with report {report_id}"
+                        )
+                    
+                    st.sidebar.success(f"Created new Parquet file with report {report_id}")
+        
         except Exception as e:
-            st.sidebar.error(f"Error saving to Hugging Face: {str(e)}")
-            st.sidebar.exception(e)
-            return local_path, machine_readable_output
+            st.sidebar.error(f"Error updating Parquet file: {str(e)}")
+            raise
     
     def get_report(self, report_id):
-        """Retrieve a report from Hugging Face dataset"""
-        import streamlit as st
-        
+        """Retrieve a report from the Hugging Face repository"""
         if not self.initialized:
-            local_provider = LocalStorageProvider()
-            return local_provider.get_report(report_id)
+            if not self.initialize():
+                session_key = f"report_{report_id}"
+                if session_key in st.session_state:
+                    return st.session_state[session_key]
+                return None
         
         try:
-            import datasets
-            import duckdb
-            import pandas as pd
+            report_path = f"reports/{report_id}.json"
             
-            dataset = datasets.load_dataset(
-                self.repo_id, 
-                token=self.hf_token, 
-                cache_dir=self.local_cache_dir
+            downloaded_file = hf_hub_download(
+                repo_id=self.repo_id,
+                filename=report_path,
+                repo_type="dataset",
+                token=self.hf_token
             )
             
-            df = dataset["train"].to_pandas()
+            with open(downloaded_file, "r") as f:
+                report_data = json.load(f)
             
-            report_row = df[df["report_id"] == report_id]
+            st.sidebar.success(f"Successfully retrieved report {report_id}")
+            return report_data
             
-            if len(report_row) > 0:
-                row = report_row.iloc[0]
-                
-                form_data = json.loads(row["form_data"])
-                machine_readable = json.loads(row["machine_readable"])
-                
-                return {
-                    "form_data": form_data,
-                    "machine_readable": machine_readable,
-                    "timestamp": row["submission_timestamp"]
-                }
-            
-            # If not found, try local storage -> will delete this later once we I can confirm that HF always works
-            st.warning(f"Report {report_id} not found in Hugging Face dataset. Trying local storage.")
-            local_provider = LocalStorageProvider()
-            return local_provider.get_report(report_id)
-                
         except Exception as e:
-            st.error(f"Error retrieving from Hugging Face: {e}")
-            local_provider = LocalStorageProvider()
-            return local_provider.get_report(report_id)
+            st.sidebar.warning(f"Could not retrieve report from Hugging Face: {str(e)}")
+            
+            session_key = f"report_{report_id}"
+            if session_key in st.session_state:
+                st.sidebar.info(f"Retrieved report {report_id} from session state")
+                return st.session_state[session_key]
+            
+            return None
     
     def update_report(self, report_id, form_data):
-        """Update an existing report in Hugging Face dataset"""
-        # For the HF implementation, this is essentially the same as saving a new report as we're replacing the entire document
-        _, machine_readable_output = self.save_report(form_data)
-        return True
+        """Update an existing report"""
+        # Just use save_report since it will overwrite the existing file
+        result, _ = self.save_report(form_data)
+        return result.startswith("huggingface:")
     
     def list_reports(self, limit=100):
-        """List reports in the dataset"""
-        import streamlit as st
+        """List all reports in the repository"""
+        reports = []
         
         if not self.initialized:
-            return []
+            if not self.initialize():
+                for key in st.session_state:
+                    if key.startswith("report_"):
+                        try:
+                            report_id = key.replace("report_", "")
+                            data = st.session_state[key]
+                            form_data = data.get("form_data", {})
+                            
+                            reports.append({
+                                "report_id": report_id,
+                                "report_status": form_data.get("Report Status", "Unknown"),
+                                "report_types": form_data.get("Report Types", []),
+                                "reporter_id": form_data.get("Reporter ID", "Anonymous"),
+                                "submission_timestamp": data.get("timestamp", "Unknown")
+                            })
+                        except Exception as e:
+                            st.sidebar.error(f"Error processing session state report {key}: {str(e)}")
+                
+                return reports[:limit]
         
         try:
-            import datasets
-            import pandas as pd
-            
-            dataset = datasets.load_dataset(
-                self.repo_id, 
-                token=self.hf_token,
-                cache_dir=self.local_cache_dir
-            )
-            
-            df = dataset["train"].to_pandas()
-            
-            df = df[df["report_id"] != "placeholder"]
-            
-            report_list = []
-            for _, row in df.head(limit).iterrows():
-                report_list.append({
-                    "report_id": row["report_id"],
-                    "report_status": row["report_status"],
-                    "report_types": row["report_types"],
-                    "reporter_id": row["reporter_id"],
-                    "submission_timestamp": row["submission_timestamp"]
-                })
-            
-            return report_list
+            try:
+                index_path = "reports_index.json"
                 
+                # Download the index
+                downloaded_index = hf_hub_download(
+                    repo_id=self.repo_id,
+                    filename=index_path,
+                    repo_type="dataset",
+                    token=self.hf_token
+                )
+                
+                with open(downloaded_index, "r") as f:
+                    reports = json.load(f)
+                
+                st.sidebar.success(f"Retrieved {len(reports)} reports from index file")
+                
+            except Exception as index_error:
+                st.sidebar.info(f"Could not use index file, trying Parquet file: {str(index_error)}")
+                
+                try:
+                    with tempfile.TemporaryDirectory() as tmp_dir:
+                        try:
+                            downloaded_file = hf_hub_download(
+                                repo_id=self.repo_id,
+                                filename=self.parquet_file,
+                                repo_type="dataset",
+                                token=self.hf_token,
+                                local_dir=tmp_dir,
+                                local_dir_use_symlinks=False
+                            )
+                            
+                            df = pd.read_parquet(downloaded_file)
+                            st.sidebar.success(f"Retrieved {len(df)} reports from Parquet file")
+                            
+                            for _, row in df.iterrows():
+                                try:
+                                    if isinstance(row["report_types"], str):
+                                        report_types = json.loads(row["report_types"])
+                                    else:
+                                        report_types = row["report_types"]
+                                        
+                                    reports.append({
+                                        "report_id": row["report_id"],
+                                        "report_status": row["report_status"],
+                                        "report_types": report_types,
+                                        "reporter_id": row["reporter_id"],
+                                        "submission_timestamp": row["submission_timestamp"]
+                                    })
+                                except Exception as row_error:
+                                    st.sidebar.error(f"Error processing row in Parquet file: {str(row_error)}")
+                            
+                        except Exception as parquet_error:
+                            st.sidebar.info(f"Could not use Parquet file, scanning repository: {str(parquet_error)}")
+                            raise
+                        
+                except Exception:
+                    st.sidebar.info("Scanning repository for report files")
+                    
+                    files = list_repo_files(
+                        repo_id=self.repo_id,
+                        repo_type="dataset",
+                        token=self.hf_token
+                    )
+                    
+                    report_files = [f for f in files if f.startswith("reports/") and f.endswith(".json")]
+                    
+                    st.sidebar.info(f"Found {len(report_files)} report files in repository")
+                    
+                    for file_path in report_files[:limit]:
+                        try:
+                            report_id = file_path.replace("reports/", "").replace(".json", "")
+                            
+                            downloaded_file = hf_hub_download(
+                                repo_id=self.repo_id,
+                                filename=file_path,
+                                repo_type="dataset",
+                                token=self.hf_token
+                            )
+                            
+                            with open(downloaded_file, "r") as f:
+                                report_data = json.load(f)
+                            
+                            form_data = report_data.get("form_data", {})
+                            
+                            reports.append({
+                                "report_id": report_id,
+                                "report_status": form_data.get("Report Status", "Unknown"),
+                                "report_types": form_data.get("Report Types", []),
+                                "reporter_id": form_data.get("Reporter ID", "Anonymous"),
+                                "submission_timestamp": report_data.get("timestamp", "Unknown")
+                            })
+                        except Exception as e:
+                            st.sidebar.error(f"Error processing report file {file_path}: {str(e)}")
+            
+            # Add any reports from session state that aren't already in the list
+            for key in st.session_state:
+                if key.startswith("report_"):
+                    try:
+                        report_id = key.replace("report_", "")
+                        
+                        # Skip if this report is already in the list
+                        if any(r.get("report_id") == report_id for r in reports):
+                            continue
+                            
+                        data = st.session_state[key]
+                        form_data = data.get("form_data", {})
+                        
+                        reports.append({
+                            "report_id": report_id,
+                            "report_status": form_data.get("Report Status", "Unknown"),
+                            "report_types": form_data.get("Report Types", []),
+                            "reporter_id": form_data.get("Reporter ID", "Anonymous"),
+                            "submission_timestamp": data.get("timestamp", "Unknown")
+                        })
+                    except Exception as e:
+                        st.sidebar.error(f"Error processing session state report {key}: {str(e)}")
+            
+            # Sort by newest first
+            reports.sort(key=lambda x: x.get("submission_timestamp", ""), reverse=True)
+            
+            return reports[:limit]
+            
         except Exception as e:
-            st.error(f"Error listing reports from Hugging Face: {e}")
-            return []
-    
+            st.sidebar.error(f"Error listing reports: {str(e)}")
+            
+            # Fall back to session state reports
+            for key in st.session_state:
+                if key.startswith("report_"):
+                    try:
+                        report_id = key.replace("report_", "")
+                        data = st.session_state[key]
+                        form_data = data.get("form_data", {})
+                        
+                        reports.append({
+                            "report_id": report_id,
+                            "report_status": form_data.get("Report Status", "Unknown"),
+                            "report_types": form_data.get("Report Types", []),
+                            "reporter_id": form_data.get("Reporter ID", "Anonymous"),
+                            "submission_timestamp": data.get("timestamp", "Unknown")
+                        })
+                    except Exception as sess_error:
+                        st.sidebar.error(f"Error processing session report: {str(sess_error)}")
+            
+            return reports[:limit]
+            
     def query_reports(self, query):
         """
-        Query reports using DuckDB SQL syntax
+        Query reports (simplified implementation)
         
         Args:
-            query (str): SQL query to execute against the dataset
+            query (str): Query string to filter reports
             
         Returns:
-            pandas.DataFrame: Query results
+            list: List of reports (without filtering for now)
         """
-        import streamlit as st
-        
-        if not self.initialized:
-            st.warning("Hugging Face storage not initialized. Cannot run query.")
-            return None
-        
-        try:
-            import duckdb
-            import datasets
-            
-            parquet_url = f"https://huggingface.co/datasets/{self.repo_id}/resolve/main/data/train.parquet"
-            
-            result = duckdb.query(f"""
-                SELECT * FROM read_parquet('{parquet_url}')
-                WHERE {query}
-            """).df()
-            
-            return result
-                
-        except Exception as e:
-            st.error(f"Error querying reports: {e}")
-            return None
-            
-    def get_file_url(self, filename):
-        """
-        Get the URL for a file in the Hugging Face repository
-        
-        Args:
-            filename (str): The filename to get the URL for
-            
-        Returns:
-            str: The URL to the file
-        """
-        return f"https://huggingface.co/datasets/{self.repo_id}/resolve/main/uploads/{filename}"
-        
-    def list_uploaded_files(self):
-        """
-        List all files in the 'uploads' directory of the Hugging Face repository
-        
-        Returns:
-            list: List of filenames
-        """
-        try:
-            import requests
-            
-            url = f"https://huggingface.co/api/datasets/{self.repo_id}/tree/main/uploads"
-            headers = {"Authorization": f"Bearer {self.hf_token}"}
-            
-            response = requests.get(url, headers=headers)
-            
-            if response.status_code == 200:
-                return [item["path"].replace("uploads/", "") for item in response.json()]
-            elif response.status_code == 404:
-                # Directory doesn't exist yet
-                return []
-            else:
-                import streamlit as st
-                st.warning(f"Failed to list files: {response.status_code} - {response.text}")
-                return []
-                
-        except Exception as e:
-            import streamlit as st
-            st.error(f"Error listing uploaded files: {e}")
-            return []
+        st.sidebar.warning("Direct SQL querying is not supported in the simplified implementation")
+
+        all_reports = self.list_reports(limit=1000)
+        return all_reports
