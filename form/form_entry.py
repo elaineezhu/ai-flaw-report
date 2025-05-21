@@ -28,7 +28,7 @@ class FormEntry:
         options: Optional[List[str]] = None,
         default: Any = None,
         help_text: str = "",
-        info_text: str = "",  # New parameter for info text
+        info_text: str = "",
         required: bool = False,
         handler: Optional[Callable] = None,
         validation: Optional[Callable] = None,
@@ -55,11 +55,16 @@ class FormEntry:
         if self.required:
             help_text = f"{help_text} (Required)" if help_text else "Required field"
             
+        ui.markdown(f"**{self.title}**")
+        
+        if self.info_text:
+            ui.caption(self.info_text)
+            
         result = None
         
         if self.input_type == InputType.TEXT:
             result = ui.text_input(
-                self.title,
+                label="",
                 value=self.default,
                 help=help_text,
                 key=self.extra_params.get("key", self.name),
@@ -68,7 +73,7 @@ class FormEntry:
             
         elif self.input_type == InputType.TEXT_AREA:
             result = ui.text_area(
-                self.title,
+                label="",
                 value=self.default,
                 help=help_text,
                 key=self.extra_params.get("key", self.name),
@@ -77,7 +82,7 @@ class FormEntry:
             
         elif self.input_type == InputType.NUMBER:
             result = ui.number_input(
-                self.title,
+                label="",
                 value=self.default if self.default is not None else 0,
                 help=help_text,
                 key=self.extra_params.get("key", self.name),
@@ -88,7 +93,7 @@ class FormEntry:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} radio input")
             result = ui.radio(
-                self.title,
+                label="",
                 options=self.options,
                 index=self.options.index(self.default) if self.default in self.options else 0,
                 help=help_text,
@@ -100,7 +105,7 @@ class FormEntry:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} select input")
             result = ui.selectbox(
-                self.title,
+                label="",
                 options=self.options,
                 index=self.options.index(self.default) if self.default in self.options else 0,
                 help=help_text,
@@ -112,7 +117,7 @@ class FormEntry:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} multiselect input")
             result = ui.multiselect(
-                self.title,
+                label="",
                 options=self.options,
                 default=self.default if self.default else [],
                 help=help_text,
@@ -131,7 +136,7 @@ class FormEntry:
             
         elif self.input_type == InputType.DATE:
             result = ui.date_input(
-                self.title,
+                label="",
                 value=self.default,
                 help=help_text,
                 key=self.extra_params.get("key", self.name),
@@ -142,7 +147,7 @@ class FormEntry:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} select slider")
             result = ui.select_slider(
-                self.title,
+                label="",
                 options=self.options,
                 value=self.default if self.default else self.options[0],
                 help=help_text,
@@ -154,7 +159,7 @@ class FormEntry:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} segmented control")
             result = ui.segmented_control(
-                self.title,
+                label="",
                 options=self.options,
                 help=help_text,
                 key=self.extra_params.get("key", self.name),
@@ -163,9 +168,6 @@ class FormEntry:
         
         else:
             raise ValueError(f"Unsupported input type: {self.input_type}")
-        
-        if self.info_text:
-            ui.caption(self.info_text)
             
         return result
     
