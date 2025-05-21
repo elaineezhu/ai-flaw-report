@@ -1,7 +1,8 @@
+import streamlit as st
 class ReportRecipient:
     """Class representing a recipient of a flaw report"""
     
-    def __init__(self, name, recipient_type, contact, status="pending"):
+    def __init__(self, name, recipient_type, contact, reason=None, status="pending"):
         """
         Initialize a report recipient
         
@@ -9,11 +10,13 @@ class ReportRecipient:
             name (str): Name of the recipient (e.g., "OpenAI", "NCMEC")
             recipient_type (str): Type of recipient (e.g., "Developer", "Authority")
             contact (str): Contact information or URL
+            reason (str, optional): Reason why this recipient is suggested
             status (str): Status of sending to this recipient (default: "pending")
         """
         self.name = name
         self.recipient_type = recipient_type
         self.contact = contact
+        self.reason = reason
         self.status = status
     
     def to_dict(self):
@@ -22,6 +25,7 @@ class ReportRecipient:
             "name": self.name,
             "type": self.recipient_type,
             "contact": self.contact,
+            "reason": self.reason,
             "status": self.status
         }
     
@@ -53,43 +57,50 @@ def determine_report_recipients(form_data):
     """Determine appropriate recipients for the report based on form data"""
     recipients = []
     
-    systems = form_data.get("Systems", [])
+    systems = form_data.get("Implicated Systems", form_data.get("Systems", []))
+    
     for system in systems:
         if "OpenAI" in system or "GPT" in system:
             recipients.append(ReportRecipient(
                 name="OpenAI",
                 recipient_type="Developer",
-                contact="https://openai.com/security/vulnerability-reporting"
+                contact="https://openai.com/security/vulnerability-reporting",
+                reason="This AI developer was selected as an affected system"
             ))
         elif "Anthropic" in system or "Claude" in system:
             recipients.append(ReportRecipient(
                 name="Anthropic", 
                 recipient_type="Developer",
-                contact="https://www.anthropic.com/security"
+                contact="https://www.anthropic.com/security",
+                reason="This AI developer was selected as an affected system"
             ))
         elif "Google" in system or "Gemini" in system or "Bard" in system:
             recipients.append(ReportRecipient(
                 name="Google", 
                 recipient_type="Developer",
-                contact="https://bughunters.google.com/"
+                contact="https://bughunters.google.com/",
+                reason="This AI developer was selected as an affected system"
             ))
         elif "Meta" in system or "Llama" in system:
             recipients.append(ReportRecipient(
                 name="Meta", 
                 recipient_type="Developer",
-                contact="https://www.facebook.com/whitehat"
+                contact="https://www.facebook.com/whitehat",
+                reason="This AI developer was selected as an affected system"
             ))
     
-    if "CSAM" in form_data.get("Experienced Harm Types", []):
+    if "Child sexual-abuse material (CSAM)" in form_data.get("Experienced Harm Types", []):
         recipients.append(ReportRecipient(
             name="National Center for Missing & Exploited Children (NCMEC)",
             recipient_type="Authority",
-            contact="https://report.cybertip.org/"
+            contact="https://report.cybertip.org/",
+            reason="This authority should be notified for incidents involving CSAM"
         ))
         recipients.append(ReportRecipient(
             name="Internet Watch Foundation (IWF)",
             recipient_type="Authority",
-            contact="https://report.iwf.org.uk/"
+            contact="https://report.iwf.org.uk/",
+            reason="This international authority handles reports of CSAM"
         ))
     
     if form_data.get("Severity") in ["Critical", "High"]:
@@ -97,19 +108,96 @@ def determine_report_recipients(form_data):
             recipients.append(ReportRecipient(
                 name="CERT Coordination Center",
                 recipient_type="Authority",
-                contact="https://www.kb.cert.org/vuls/report/"
+                contact="https://www.kb.cert.org/vuls/report/",
+                reason="This authority should be notified of high-severity security incidents"
             ))
             recipients.append(ReportRecipient(
                 name="CISA",
                 recipient_type="Authority",
-                contact="https://www.cisa.gov/report"
+                contact="https://www.cisa.gov/report",
+                reason="U.S. Cybersecurity & Infrastructure Security Agency handles critical security incidents"
             ))
     
-    if "Real-World Events" in form_data.get("Report Types", []):
+    if "Real-World Incidents" in form_data.get("Report Types", []):
         recipients.append(ReportRecipient(
             name="AI Incident Database",
             recipient_type="Database",
-            contact="https://incidentdatabase.ai/submit"
+            contact="https://incidentdatabase.ai/submit",
+            reason="This database catalogs real-world AI incidents for research purposes"
         ))
     
     return recipients
+
+def display_submission_table(recipients):
+    """Display submission options in a table format with checkboxes"""
+    if not recipients:
+        st.write("No specific recipients determined for this report.")
+        return
+    
+    st.write("### Submit to Report Database")
+    
+    db_checkbox_key = "submit_to_database"
+    if db_checkbox_key not in st.session_state:
+        st.session_state[db_checkbox_key] = True
+    
+    st.checkbox(
+        "Submit to AI Flaw Report Database (Recommended)", 
+        value=st.session_state[db_checkbox_key],
+        key=db_checkbox_key,
+        help="Your report will be stored in our database for research and monitoring purposes"
+    )
+    
+    if len(recipients) > 0:
+        st.write("### External Recipients")
+        
+        cols = st.columns([3, 3, 6, 1])
+        cols[0].write("**Submit To**")
+        cols[1].write("**Contact**")
+        cols[2].write("**Reason**")
+        cols[3].write("**Select**")
+        
+        st.markdown("---")
+        
+        grouped_recipients = {}
+        for recipient in recipients:
+            recipient_type = recipient.recipient_type
+            if recipient_type not in grouped_recipients:
+                grouped_recipients[recipient_type] = []
+            grouped_recipients[recipient_type].append(recipient)
+        
+        for recipient_type, recipients_list in grouped_recipients.items():
+            if recipient_type == "Authority":
+                plural_type = "Authorities"
+            elif recipient_type.endswith("y"):
+                plural_type = f"{recipient_type[:-1]}ies"  
+            elif recipient_type.endswith("s"):
+                plural_type = f"{recipient_type}es"
+            else:
+                plural_type = f"{recipient_type}s"
+                
+            st.write(f"**{plural_type}:**")
+            
+            for recipient in recipients_list:
+                checkbox_key = f"submit_to_{recipient.name.replace(' ', '_').replace('(', '').replace(')', '')}"
+                if checkbox_key not in st.session_state:
+                    st.session_state[checkbox_key] = True
+                
+                cols = st.columns([3, 3, 6, 1])
+                
+                if recipient.contact.startswith(("http://", "https://")):
+                    cols[0].markdown(f"[{recipient.name}]({recipient.contact})")
+                else:
+                    cols[0].write(recipient.name)
+                
+                contact_display = recipient.contact
+                if contact_display.startswith(("http://", "https://")):
+                    contact_display = f"[Submission Form]({recipient.contact})"
+                elif "@" in contact_display:
+                    contact_display = f"[{contact_display}](mailto:{contact_display})"
+                cols[1].markdown(contact_display)
+                
+                cols[2].write(recipient.reason if hasattr(recipient, 'reason') and recipient.reason else "Relevant to your report type")
+                
+                cols[3].checkbox("", value=st.session_state[checkbox_key], key=checkbox_key)
+                
+            st.markdown("---")

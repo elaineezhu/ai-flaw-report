@@ -12,6 +12,7 @@ from form.data.constants import *
 from form.utils.file_handling import save_uploaded_files
 from form.utils.recipients import determine_report_recipients
 from storage.storage_interface import get_storage_provider
+from form.utils.recipients import display_submission_table
 
 def initialize_session_state():
     """Initialize session state variables if they don't exist"""
@@ -23,6 +24,9 @@ def initialize_session_state():
     
     if 'report_types' not in st.session_state:
         st.session_state.report_types = []
+    
+    if 'welcome_screen_acknowledged' not in st.session_state:
+        st.session_state.welcome_screen_acknowledged = False
     
     if 'common_data' not in st.session_state:
         st.session_state.common_data = {}
@@ -44,17 +48,34 @@ def initialize_session_state():
         
     if 'threat_actor_radio' not in st.session_state:
         st.session_state.threat_actor_radio = None
-    
-    if 'form_reset' not in st.session_state:
-        st.session_state.form_reset = False
 
-def reset_form():
-    """Reset all session state variables to their initial values"""
-    st.session_state['_needs_complete_reset'] = True
+def display_welcome_screen():
+    """Display welcome instructions as a popup-like screen that works in both light and dark mode"""
+    st.markdown("# Instructions Before You Begin")
     
-    st.session_state['_new_report_id'] = str(uuid.uuid4())
-    
-    st.rerun()
+    with st.container():
+        with st.expander("About This Form", expanded=True):
+            st.markdown("""
+            You are welcome to report any broadly-scoped flaw, vulnerability, or incident relating to an AI system or model. 
+            We encourage reports with demonstrable risks, harms, or systematic concerns related to general-purpose AI systems.
+            
+            **This form will:**
+            * Help you generate a comprehensive, machine-readable report, informed by security best practices.
+            * Elicit details that will make it easier to review and triage.
+            * Provide the option to automatically submit your report to a list of the venues relevant for your flaw.
+            
+            This form creates a form *for you*. Reports are handled in **strict confidence**, and **will not be saved or sent unless you choose to submit them**.
+            
+            Please feel free to contact us at _____ for questions or information.
+            """)
+        
+        st.markdown("")
+        
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            if st.button("Continue to Form", type="primary", use_container_width=True):
+                st.session_state.welcome_screen_acknowledged = True
+                st.rerun()
 
 def update_real_world_incident_radio():
     """Update the session state based on radio button selection"""
@@ -76,7 +97,7 @@ def update_threat_actor_radio():
 
 def check_csam_harm_selected(harm_types):
     """Check if CSAM is selected as a harm type and show appropriate warning/guidance"""
-    if "CSAM" in harm_types:
+    if "Child sexual-abuse material (CSAM)" in harm_types:
         st.error("""
         ## IMPORTANT: CSAM Reporting Guidelines
         
@@ -111,7 +132,6 @@ def handle_submission():
     
     # DEBUGGING INFO (Will delete later)
     st.sidebar.info(f"Submitting form with Report ID: {form_data.get('Report ID')}")
-    st.sidebar.info(f"Report Status: {form_data.get('Report Status')}")
     st.sidebar.info(f"Report Types: {form_data.get('Report Types', [])}")
     
     if st.session_state.uploaded_files:
@@ -122,11 +142,13 @@ def handle_submission():
     st.session_state.submission_status = True
 
 def show_report_submission_results(form_data):
-    """Display submission results with fixed download functionality"""
-    st.success("Report submitted successfully!")
+    """Redesigned to separate Created vs Submitted states"""
+    st.success("Report successfully created!")
 
     report_id = form_data.get("Report ID", st.session_state.get("report_id", "unknown"))
     form_data["Report ID"] = report_id
+    
+    st.info(f"Here is the Report ID you can save for your reference in the future: **{report_id}**")
     
     storage_provider = get_storage_provider()
     
@@ -141,7 +163,8 @@ def show_report_submission_results(form_data):
     
     report_path, machine_readable_output = storage_provider.save_report(form_data)
     
-    st.subheader("Download Your Report")
+    st.subheader("Your Report Has Been Created")
+    st.write("Your report has been saved and is available for download in the following formats:")
     
     col1, col2 = st.columns(2)
     
@@ -169,13 +192,38 @@ def show_report_submission_results(form_data):
         )
     
     st.markdown("---")
-    st.subheader("Recommended Report Recipients")
+    
+    st.subheader("Submit Your Report")
+    st.write("You can automatically submit your report to the following recommended recipients:")
     
     recipients = determine_report_recipients(form_data)
-    display_report_recipients(recipients)
     
-    if len(recipients) > 0 and st.button("Send to All Recipients", type="primary"):
-        st.success("STUB FOR SENDING TO ALL RECIPIENTS IN ACTUAL IMPLEMENTATION")
+    display_submission_table(recipients)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if len(recipients) > 0 and st.button("Submit to Selected Recipients", type="primary", use_container_width=True):
+            selected_recipients = []
+            for recipient in recipients:
+                safe_key = f"submit_to_{recipient.name.replace(' ', '_').replace('(', '').replace(')', '')}"
+                if st.session_state.get(safe_key, True):
+                    selected_recipients.append(recipient)
+            
+            db_selected = st.session_state.get("submit_to_database", True)
+            
+            if selected_recipients or db_selected:
+                total_submissions = len(selected_recipients) + (1 if db_selected else 0)
+                st.success(f"Report submitted to {total_submissions} recipient(s)")
+                
+                st.write("**Submitted to:**")
+                if db_selected:
+                    st.write("- AI Flaw Report Database")
+                for recipient in selected_recipients:
+                    st.write(f"- {recipient.name}")
+                    
+                # FOR FUTURE IMPL: Call recipient.submit(form_data) for each recipient
+            else:
+                st.warning("No recipients were selected. Please select at least one recipient or download the report manually.")
 
 def display_report_recipients(recipients):
     """Display the recommended recipients for the report with correct pluralization"""
@@ -206,14 +254,14 @@ def display_report_recipients(recipients):
 
 def display_file_upload():
     """Display file upload section"""
-    uploaded_files = st.file_uploader("Upload Relevant Files", accept_multiple_files=True)
+    uploaded_files = st.file_uploader("Upload Relevant Files: Any files that pertain to the reproducibility or documentation of the flaw. Please title them and refer to them in descriptions.", accept_multiple_files=True)
     if uploaded_files:
         st.session_state.uploaded_files = uploaded_files
         st.write(f"{len(uploaded_files)} file(s) uploaded")
 
 def display_report_type_classification():
     """Display report type classification questions"""
-    st.subheader("Report Type Classification")
+    st.subheader("Report Classification")
     st.markdown("Please answer the following questions to determine the appropriate report type:")
 
     # Question 1
@@ -240,6 +288,12 @@ def display_report_type_classification():
 def create_app():
     """Main function to create the Streamlit app with database integration"""
     st.set_page_config(page_title="AI Flaw Report Form", layout="wide")
+
+    initialize_session_state()
+
+    if not st.session_state.welcome_screen_acknowledged:
+        display_welcome_screen()
+        return 
     
     storage_provider = get_storage_provider()
     initialized = storage_provider.initialize()
@@ -271,9 +325,6 @@ def create_app():
     else:
         initialize_session_state()
     
-    if st.session_state.get('form_reset', False):
-        st.session_state.form_reset = False
-        st.rerun()
     
     st.title("AI Flaw & Incident Report Form")
     
@@ -283,9 +334,6 @@ def create_app():
     
     Please fill out the appropriate sections based on the type of report you're submitting.
     """)
-
-    if st.button("Reset Form", type="secondary"):
-        reset_form()
     
     basic_info = form_sections.display_basic_information()
     common_fields = form_sections.display_common_fields()
@@ -310,13 +358,13 @@ def create_app():
             st.session_state.form_data = {}
             
             # Real-World Events fields
-            if "Real-World Events" in report_types:
+            if "Real-World Incidents" in report_types:
                 real_world_fields = form_sections.display_real_world_event_fields()
                 st.session_state.form_data.update(real_world_fields)
                 
                 csam_acknowledged = check_csam_harm_selected(real_world_fields.get("Experienced Harm Types", []))
             else:
-                csam_acknowledged = True  # No Real-World Events section, so no CSAM check needed
+                csam_acknowledged = True
             
             # Malign Actor fields
             if "Malign Actor" in report_types:
@@ -353,18 +401,15 @@ def create_app():
                 if not csam_acknowledged:
                     st.warning("You must acknowledge the CSAM reporting guidelines before submitting.")
                 
-                if st.button("Reset Form", type="secondary", use_container_width=True):
-                    reset_form()
-                
             if submit_button:
-                required_fields = ["Reporter ID"]
+                required_fields = []
                 
                 required_fields.extend(["Flaw Description", "Policy Violation", "Impacts", "Impacted Stakeholder(s)"])
                 
                 # Add type-specific required fields
-                if "Real-World Events" in report_types:
+                if "Real-World Incidents" in report_types:
                     required_fields.extend([
-                        "Description of the Incident(s)", "Implicated Systems", "Event Location(s)",
+                        "Description of the Incident(s)", "Implicated Systems", "Incident Location(s)",
                         "Experienced Harm Types", "Harm Narrative"
                     ])
                 

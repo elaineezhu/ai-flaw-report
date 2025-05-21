@@ -99,7 +99,7 @@ def get_systems_options(use_api=True, include_priority=True):
     
 def searchable_model_selector(available_models, key_prefix="model", max_selections=10, help_text=None):
     """
-    A searchable model selector that supports free text input with autocomplete suggestions.
+    An improved searchable model selector with better UI elements for dark theme
     
     Args:
         available_models (list): List of available model options to choose from
@@ -110,6 +110,43 @@ def searchable_model_selector(available_models, key_prefix="model", max_selectio
     Returns:
         list: List of selected models (including any custom entries)
     """
+    
+    def on_input_change():
+        current_input = st.session_state[f"{key_prefix}_text_input"].strip()
+        st.session_state[f"{key_prefix}_current_input"] = current_input
+        
+        if current_input:
+            input_lower = current_input.lower()
+            
+            exact_matches = [model for model in available_models 
+                            if input_lower in model.lower() 
+                            and model not in st.session_state[f"{key_prefix}_selections"]]
+            
+            if not exact_matches:
+                close_matches = get_close_matches(current_input, available_models, n=5, cutoff=0.6)
+                
+                suggestions = [match for match in close_matches 
+                              if match not in st.session_state[f"{key_prefix}_selections"]]
+            else:
+                suggestions = sorted(exact_matches, key=lambda x: (len(x), x))[:5]
+            
+            st.session_state[f"{key_prefix}_suggestions"] = suggestions
+        else:
+            st.session_state[f"{key_prefix}_suggestions"] = []
+    
+    def add_custom_model():
+        model_name = st.session_state[f"{key_prefix}_custom_input"].strip()
+        if model_name and model_name not in st.session_state[f"{key_prefix}_selections"]:
+            if len(st.session_state[f"{key_prefix}_selections"]) < max_selections:
+                st.session_state[f"{key_prefix}_selections"].append(model_name)
+                st.session_state[f"{key_prefix}_custom_input"] = ""
+                st.rerun()
+            else:
+                st.warning(f"Maximum of {max_selections} models can be selected.")
+    
+    def add_suggestion(model_name):
+        st.session_state[f"{key_prefix}_pending_selection"] = model_name
+    
     if f"{key_prefix}_selections" not in st.session_state:
         st.session_state[f"{key_prefix}_selections"] = []
     
@@ -119,21 +156,40 @@ def searchable_model_selector(available_models, key_prefix="model", max_selectio
     if f"{key_prefix}_pending_selection" not in st.session_state:
         st.session_state[f"{key_prefix}_pending_selection"] = None
     
+    if f"{key_prefix}_suggestions" not in st.session_state:
+        st.session_state[f"{key_prefix}_suggestions"] = []
+    
     if st.session_state[f"{key_prefix}_pending_selection"] is not None:
         model_name = st.session_state[f"{key_prefix}_pending_selection"]
         if model_name and model_name not in st.session_state[f"{key_prefix}_selections"]:
-            st.session_state[f"{key_prefix}_selections"].append(model_name)
+            if len(st.session_state[f"{key_prefix}_selections"]) < max_selections:
+                st.session_state[f"{key_prefix}_selections"].append(model_name)
+            else:
+                st.warning(f"Maximum of {max_selections} models can be selected.")
         st.session_state[f"{key_prefix}_pending_selection"] = None
         st.session_state[f"{key_prefix}_current_input"] = ""
         st.rerun()
     
+    current_input = st.text_input(
+        "",
+        key=f"{key_prefix}_text_input",
+        value=st.session_state[f"{key_prefix}_current_input"],
+        on_change=on_input_change,
+        placeholder="Start typing to search...",
+        help=help_text
+    )
+    
     if st.session_state[f"{key_prefix}_selections"]:
-        st.write("Selected models:")
-        cols = st.columns([0.9, 0.1])
         for i, selected in enumerate(st.session_state[f"{key_prefix}_selections"]):
-            with cols[0]:
-                st.text(f"• {selected}")
-            with cols[1]:
+            col1, col2 = st.columns([6, 1])
+            with col1:
+                st.button(
+                    selected,
+                    key=f"{key_prefix}_selected_{i}",
+                    disabled=True,
+                    use_container_width=True
+                )
+            with col2:
                 if st.button("❌", key=f"{key_prefix}_remove_{i}"):
                     st.session_state[f"{key_prefix}_selections"].pop(i)
                     st.rerun()
@@ -142,58 +198,69 @@ def searchable_model_selector(available_models, key_prefix="model", max_selectio
         st.warning(f"Maximum of {max_selections} models can be selected.")
         return st.session_state[f"{key_prefix}_selections"]
     
-    def on_input_change():
-        st.session_state[f"{key_prefix}_current_input"] = st.session_state[f"{key_prefix}_text_input"]
-    
-    def add_custom_model():
-        model_name = st.session_state[f"{key_prefix}_custom_input"].strip()
-        if model_name and model_name not in st.session_state[f"{key_prefix}_selections"]:
-            st.session_state[f"{key_prefix}_selections"].append(model_name)
-            st.session_state[f"{key_prefix}_custom_input"] = ""
-            st.rerun()
-    
-    def add_suggestion(model_name):
-        st.session_state[f"{key_prefix}_pending_selection"] = model_name
-    
-    current_input = st.text_input(
-        "Search for a model",
-        key=f"{key_prefix}_text_input",
-        value=st.session_state[f"{key_prefix}_current_input"],
-        on_change=on_input_change,
-        help=help_text
-    )
-    
-    if current_input:
-        input_lower = current_input.lower()
+    suggestions = st.session_state[f"{key_prefix}_suggestions"]
+    if suggestions:
+        st.caption("Click to add:")
         
-        # First try exact matches
-        exact_matches = [model for model in available_models 
-                         if input_lower in model.lower() 
-                         and model not in st.session_state[f"{key_prefix}_selections"]]
+        num_cols = min(len(suggestions), 3)
+        suggestion_cols = st.columns(num_cols)
         
-        if not exact_matches:
-            # If not, use difflib to find close matches
-            close_matches = get_close_matches(current_input, available_models, n=5, cutoff=0.6)
-            
-            suggestions = [match for match in close_matches 
-                          if match not in st.session_state[f"{key_prefix}_selections"]]
-        else:
-            suggestions = sorted(exact_matches, key=lambda x: (len(x), x))[:5]
+        for i, suggestion in enumerate(suggestions):
+            with suggestion_cols[i % num_cols]:
+                if st.button(
+                    f"➕ {suggestion}", 
+                    key=f"{key_prefix}_suggestion_{i}",
+                    use_container_width=True
+                ):
+                    add_suggestion(suggestion)
+    elif current_input and not suggestions:
+        st.write("No matching entries found. You can add a custom entry:")
         
-        if suggestions:
-            st.write("Suggestions:")
-            cols = st.columns(min(len(suggestions), 3))
-            for i, suggestion in enumerate(suggestions[:5]):
-                with cols[i % 3]:
-                    if st.button(suggestion, key=f"{key_prefix}_suggestion_{i}"):
-                        add_suggestion(suggestion)
-        else:
-            st.write("No matching models found. You can add a custom entry:")
-            
-            st.text_input(
-                "Enter custom model name",
-                key=f"{key_prefix}_custom_input",
-                on_change=add_custom_model
-            )
+        st.text_input(
+            "Enter custom entry",
+            key=f"{key_prefix}_custom_input",
+            on_change=add_custom_model,
+            placeholder="Type a custom entry and press Enter"
+        )
     
     return st.session_state[f"{key_prefix}_selections"]
+
+def searchable_select_with_other(available_models, key_prefix, title=None, caption=None, help_text=None, max_selections=10):
+    """
+    A utility function that combines searchable_model_selector with Other option handling
+    
+    Args:
+        available_models (list): List of options to select from
+        key_prefix (str): Prefix for session state keys
+        title (str, optional): Title to display above the selector
+        caption (str, optional): Caption text to display below the title
+        help_text (str, optional): Help text to display
+        max_selections (int): Maximum number of selections allowed
+        
+    Returns:
+        tuple: (selected_options, other_text)
+    """
+    import streamlit as st
+    
+    if title:
+        st.write(f"**{title}**")
+    if caption:
+        st.caption(caption)
+    
+    options_list = list(available_models)
+    
+    selected = searchable_model_selector(
+        available_models=options_list,
+        key_prefix=key_prefix,
+        max_selections=max_selections,
+        help_text=help_text
+    )
+    
+    other_text = None
+    if selected and "Other" in selected:
+        other_text = st.text_area(
+            f"Please specify other {key_prefix}:",
+            key=f"{key_prefix}_other_input"
+        )
+    
+    return selected, other_text
