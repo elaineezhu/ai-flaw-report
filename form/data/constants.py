@@ -1,11 +1,3 @@
-SYSTEM_VERSIONS = [
-    "v1.0",
-    "v1.1",
-    "v2.0",
-    "v3.0",
-    "Other"
-]
-
 PRIORITY_MODELS = [
     # Text models
     "GPT-4.5-Preview",
@@ -44,7 +36,6 @@ PRIORITY_MODELS = [
     "Playground-v2.5",
     "Ideogram-v2",
     "Ideogram",
-    "Other",
 
     # Video models
     "Runway",
@@ -57,8 +48,7 @@ PRIORITY_MODELS = [
     "Kling-Pro-v1.5",
     "HunyuanVideo",
     "Haiper2.0",
-    "Veo-2",
-    "Other",
+    "Veo-2"
 ]
 
 

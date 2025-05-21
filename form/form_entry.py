@@ -28,6 +28,7 @@ class FormEntry:
         options: Optional[List[str]] = None,
         default: Any = None,
         help_text: str = "",
+        info_text: str = "",  # New parameter for info text
         required: bool = False,
         handler: Optional[Callable] = None,
         validation: Optional[Callable] = None,
@@ -39,6 +40,7 @@ class FormEntry:
         self.options = options
         self.default = default
         self.help_text = help_text
+        self.info_text = info_text
         self.required = required
         self.handler = handler
         self.validation = validation
@@ -52,9 +54,11 @@ class FormEntry:
         help_text = self.help_text
         if self.required:
             help_text = f"{help_text} (Required)" if help_text else "Required field"
+            
+        result = None
         
         if self.input_type == InputType.TEXT:
-            return ui.text_input(
+            result = ui.text_input(
                 self.title,
                 value=self.default,
                 help=help_text,
@@ -63,7 +67,7 @@ class FormEntry:
             )
             
         elif self.input_type == InputType.TEXT_AREA:
-            return ui.text_area(
+            result = ui.text_area(
                 self.title,
                 value=self.default,
                 help=help_text,
@@ -72,7 +76,7 @@ class FormEntry:
             )
             
         elif self.input_type == InputType.NUMBER:
-            return ui.number_input(
+            result = ui.number_input(
                 self.title,
                 value=self.default if self.default is not None else 0,
                 help=help_text,
@@ -83,7 +87,7 @@ class FormEntry:
         elif self.input_type == InputType.RADIO:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} radio input")
-            return ui.radio(
+            result = ui.radio(
                 self.title,
                 options=self.options,
                 index=self.options.index(self.default) if self.default in self.options else 0,
@@ -95,7 +99,7 @@ class FormEntry:
         elif self.input_type == InputType.SELECT:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} select input")
-            return ui.selectbox(
+            result = ui.selectbox(
                 self.title,
                 options=self.options,
                 index=self.options.index(self.default) if self.default in self.options else 0,
@@ -107,7 +111,7 @@ class FormEntry:
         elif self.input_type == InputType.MULTISELECT:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} multiselect input")
-            return ui.multiselect(
+            result = ui.multiselect(
                 self.title,
                 options=self.options,
                 default=self.default if self.default else [],
@@ -117,7 +121,7 @@ class FormEntry:
             )
             
         elif self.input_type == InputType.CHECKBOX:
-            return ui.checkbox(
+            result = ui.checkbox(
                 self.title,
                 value=self.default if self.default is not None else False,
                 help=help_text,
@@ -126,7 +130,7 @@ class FormEntry:
             )
             
         elif self.input_type == InputType.DATE:
-            return ui.date_input(
+            result = ui.date_input(
                 self.title,
                 value=self.default,
                 help=help_text,
@@ -137,7 +141,7 @@ class FormEntry:
         elif self.input_type == InputType.SELECT_SLIDER:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} select slider")
-            return ui.select_slider(
+            result = ui.select_slider(
                 self.title,
                 options=self.options,
                 value=self.default if self.default else self.options[0],
@@ -149,7 +153,7 @@ class FormEntry:
         elif self.input_type == InputType.SEGMENTED_CONTROL:
             if not self.options:
                 raise ValueError(f"Options must be provided for {self.name} segmented control")
-            return ui.segmented_control(
+            result = ui.segmented_control(
                 self.title,
                 options=self.options,
                 help=help_text,
@@ -159,6 +163,11 @@ class FormEntry:
         
         else:
             raise ValueError(f"Unsupported input type: {self.input_type}")
+        
+        if self.info_text:
+            ui.caption(self.info_text)
+            
+        return result
     
     def to_json_ld(self, value: Any) -> Tuple[str, Any]:
         """Convert the field and its value to a JSON-LD property name and value"""
