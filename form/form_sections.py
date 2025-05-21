@@ -4,10 +4,17 @@ from form.data.constants import *
 from form.form_entry import FormEntry, InputType
 import uuid
 from form.data.hf_get_models import get_systems_options
+from form.data.hf_get_models import searchable_model_selector
 
 def display_basic_information():
     """Display and gather basic information section using FormEntry"""
     st.subheader("Basic Information")
+    
+    with st.sidebar.expander("Models API Settings", expanded=False):
+        use_api = st.checkbox("Use Hugging Face API for models", value=True)
+        if st.button("Clear Cache"):
+            st.cache_data.clear()
+            st.success("Cache cleared!")
     
     with st.container():
         col1, col2 = st.columns(2)
@@ -18,6 +25,7 @@ def display_basic_information():
                 title="Reporter ID (anonymous or real identity)",
                 input_type=InputType.TEXT,
                 help_text="Enter your anonymous or real identity.",
+                info_text="Anonymous or real identity",
                 required=True
             )
             reporter_id = reporter_field.to_streamlit()
@@ -28,24 +36,21 @@ def display_basic_information():
                 input_type=InputType.TEXT,
                 default=st.session_state.report_id,
                 help_text="This automatically generated report ID allows us to keep track of the submission when it is processed. The report ID can be referenced in future submissions and mitigation efforts.",
+                info_text="Report ID to keep track of submission",
                 extra_params={"disabled": True}
             )
             report_id = report_id_field.to_streamlit()
             
-            # Toggle to enable/disable Hugging Face API (for future debugging if necessary)
-            use_api = st.sidebar.checkbox("Use Hugging Face API for models", value=True)
-            
             systems_options = get_systems_options(use_api=use_api)
             
-            systems_field = FormEntry(
-                name="Systems",
-                title="Systems",
-                input_type=InputType.MULTISELECT,
-                options=systems_options,
+            st.write("**Systems**")
+            st.caption("AI systems and versions involved in the flaw")
+            systems = searchable_model_selector(
+                available_models=systems_options,
+                key_prefix="systems",
+                max_selections=20,
                 help_text="Select one or more AI systems and versions involved in the flaw you are reporting."
             )
-            systems = systems_field.to_streamlit()
-            systems_other = handle_other_option(systems, systems, "Please specify other systems:")
         
         with col2:
             status_field = FormEntry(
@@ -53,7 +58,8 @@ def display_basic_information():
                 title="Report Status",
                 input_type=InputType.SELECT,
                 options=REPORT_STATUS_OPTIONS,
-                help_text="This field is auto-filled."
+                help_text="This field is auto-filled.",
+                info_text=""
             )
             report_status = status_field.to_streamlit()
             
@@ -61,17 +67,20 @@ def display_basic_information():
                 name="Session ID",
                 title="Session ID",
                 input_type=InputType.TEXT,
-                help_text="Enter the session link or session ID for a session that shows the flaw you encountered if available. For example, many chatbots have a \"Share\" feature located at a top that can generate a link that you can share with others so that they have access to your chat. We will not share this link in the public AI flaw database to ensure no private information is accidentally shared too broadly."
+                help_text="Enter the session link or session ID for a session that shows the flaw you encountered if available. For example, many chatbots have a \"Share\" feature located at a top that can generate a link that you can share with others so that they have access to your chat. We will not share this link in the public AI flaw database to ensure no private information is accidentally shared too broadly.",
+                info_text="Session link or ID for a session that shows the flaw"
             )
             session_id = session_field.to_streamlit()
             
+            # Timestamps side by side within column 2
             timestamp_col1, timestamp_col2 = st.columns(2)
             with timestamp_col1:
                 start_date_field = FormEntry(
                     name="Flaw Timestamp Start",
                     title="Flaw Timestamp Start",
                     input_type=InputType.DATE,
-                    help_text="Enter the date and time when you encountered the flaw, or your best estimation."
+                    help_text="Enter the date and time when you encountered the flaw, or your best estimation.",
+                    info_text="Start date of flaw"
                 )
                 flaw_timestamp_start = start_date_field.to_streamlit()
             with timestamp_col2:
@@ -79,7 +88,8 @@ def display_basic_information():
                     name="Flaw Timestamp End",
                     title="Flaw Timestamp End",
                     input_type=InputType.DATE,
-                    help_text="If the flaw occurred multiple times, enter the full time range from the first occurrence to the most recent occurrence."
+                    help_text="If the flaw occurred multiple times, enter the full time range from the first occurrence to the most recent occurrence.",
+                    info_text="End date of flaw"
                 )
                 flaw_timestamp_end = end_date_field.to_streamlit()
     
@@ -91,54 +101,116 @@ def display_basic_information():
         "Flaw Timestamp Start": flaw_timestamp_start.isoformat() if flaw_timestamp_start else None,
         "Flaw Timestamp End": flaw_timestamp_end.isoformat() if flaw_timestamp_end else None,
         "Systems": systems,
-        "Systems_Other": systems_other
     }
 
 def display_common_fields():
     """Display and gather common fields section"""
     st.subheader("Common Fields")
     
-    context_info = st.text_area("Context Info (versions of other software/hardware involved)", 
-                             help="Enter the versions of other software or hardware systems involved in the flaw if applicable. For example, if you used an open-source model, add information on the hardware you are running it on.")
+    # Context Info
+    context_info_field = FormEntry(
+        name="Context Info",
+        title="Context Info (versions of other software/hardware involved)",
+        input_type=InputType.TEXT_AREA,
+        help_text="Enter the versions of other software or hardware systems involved in the flaw if applicable. For example, if you used an open-source model, add information on the hardware you are running it on.",
+        info_text="Versions of other software or hardware systems involved in the flaw"
+    )
+    context_info = context_info_field.to_streamlit()
     
-    # Flaw Description and Policy Violation
-    flaw_description = st.text_area("Flaw Description (identification, reproduction, how it violates system policies)", 
-                                 help="Describe the flaw, how you identified it, how it can be reproduced, and how it violates user expectations of the AI system or AI system policies. Add as much detail as possible to help reproduce and mitigate the flaw.")
+    # Flaw Description
+    flaw_description_field = FormEntry(
+        name="Flaw Description",
+        title="Flaw Description (identification, reproduction, how it violates system policies)",
+        input_type=InputType.TEXT_AREA,
+        help_text="Describe the flaw, how you identified it, how it can be reproduced, and how it violates user expectations of the AI system or AI system policies. Add as much detail as possible to help reproduce and mitigate the flaw.",
+        info_text="Flaw description, identification details, reproduction instructions, which policies/expectations were violated"
+    )
+    flaw_description = flaw_description_field.to_streamlit()
     
-    policy_violation = st.text_area("Policy Violation (how expectations of the system are violated)", 
-                                 help="Point to relevant evidence that shows how the expectations of the system are violated or undocumented, for example by pointing to the terms of use, acceptable use policy, system card, or other documentation. Policies may be explicitly or implicitly violated.")
+    # Policy Violation
+    policy_violation_field = FormEntry(
+        name="Policy Violation",
+        title="Policy Violation (how expectations of the system are violated)",
+        input_type=InputType.TEXT_AREA,
+        help_text="Point to relevant evidence that shows how the expectations of the system are violated or undocumented, for example by pointing to the terms of use, acceptable use policy, system card, or other documentation. Policies may be explicitly or implicitly violated.",
+        info_text="Pointer to relevant policies, documentation, etc. showing that the flaw violates them"
+    )
+    policy_violation = policy_violation_field.to_streamlit()
     
     # Severity and Prevalence
     col1, col2 = st.columns(2)
     with col1:
-        severity = st.select_slider("Severity", options=SEVERITY_OPTIONS, 
-                                  help="Your best estimate of how negatively stakeholders will be impacted by this flaw in a worst-case scenario.")
+        severity_field = FormEntry(
+            name="Severity",
+            title="Severity",
+            input_type=InputType.SELECT_SLIDER,
+            options=SEVERITY_OPTIONS,
+            help_text="Your best estimate of how negatively stakeholders will be impacted by this flaw in a worst-case scenario.",
+            info_text="How negatively stakeholders may be impacted"
+        )
+        severity = severity_field.to_streamlit()
     with col2:
-        prevalence = st.select_slider("Prevalence", options=PREVALENCE_OPTIONS, 
-                                    help="Your best estimate of how common the flaw may be, i.e. how often the flaw might occur across AI systems.")
+        prevalence_field = FormEntry(
+            name="Prevalence",
+            title="Prevalence",
+            input_type=InputType.SELECT_SLIDER,
+            options=PREVALENCE_OPTIONS,
+            help_text="Your best estimate of how common the flaw may be, i.e. how often the flaw might occur across AI systems.",
+            info_text="How common the flaw is"
+        )
+        prevalence = prevalence_field.to_streamlit()
     
     # Impacts and Stakeholders
     col1, col2 = st.columns(2)
     with col1:
-        impacts = st.multiselect("Impacts", options=IMPACT_OPTIONS, 
-                               help="Choose one or more impacts that affected stakeholders may experience if the flaw is not addressed.")
+        impacts_field = FormEntry(
+            name="Impacts",
+            title="Impacts",
+            input_type=InputType.MULTISELECT,
+            options=IMPACT_OPTIONS,
+            help_text="Choose one or more impacts that affected stakeholders may experience if the flaw is not addressed.",
+            info_text="Impacts that may occur if the flaw is not addressed"
+        )
+        impacts = impacts_field.to_streamlit()
         impacts_other = handle_other_option(impacts, impacts, "Please specify other impacts:")
             
     with col2:
-        impacted_stakeholders = st.multiselect("Impacted Stakeholder(s)", options=STAKEHOLDER_OPTIONS, 
-                                             help="Choose one or more impacted stakeholders who may suffer if the flaw is not addressed.")
+        stakeholders_field = FormEntry(
+            name="Impacted Stakeholder(s)",
+            title="Impacted Stakeholder(s)",
+            input_type=InputType.MULTISELECT,
+            options=STAKEHOLDER_OPTIONS,
+            help_text="Choose one or more impacted stakeholders who may suffer if the flaw is not addressed.",
+            info_text="Who is impacted if the flaw is not addressed"
+        )
+        impacted_stakeholders = stakeholders_field.to_streamlit()
         impacted_stakeholders_other = handle_other_option(impacted_stakeholders, impacted_stakeholders, 
                                                       "Please specify other impacted stakeholders:")
     
     # Risk Source and Bounty Eligibility
     col1, col2 = st.columns(2)
     with col1:
-        risk_source = st.multiselect("Risk Source", options=RISK_SOURCE_OPTIONS, 
-                                   help="Choose one or more presumed sources of the flaw.")
+        risk_source_field = FormEntry(
+            name="Risk Source",
+            title="Risk Source",
+            input_type=InputType.MULTISELECT,
+            options=RISK_SOURCE_OPTIONS,
+            help_text="Choose one or more presumed sources of the flaw.",
+            info_text="Presumed sources of the flaw"
+        )
+        risk_source = risk_source_field.to_streamlit()
         risk_source_other = handle_other_option(risk_source, risk_source, "Please specify other risk sources:")
             
     with col2:
-        bounty_eligibility = st.radio("Bounty Eligibility", options=BOUNTY_OPTIONS)
+        bounty_field = FormEntry(
+            name="Bounty Eligibility",
+            title="Bounty Eligibility",
+            input_type=InputType.RADIO,
+            options=BOUNTY_OPTIONS,
+            help_text="Whether this flaw is likely eligible for a bug bounty",
+            info_text=""
+        )
+        bounty_eligibility = bounty_field.to_streamlit()
     
     return {
         "Context Info": context_info,
@@ -163,38 +235,90 @@ def display_real_world_event_fields():
         col1, col2 = st.columns(2)
         
         with col1:
-            incident_description = st.text_area("Description of the Incident(s)", 
-                                             help="Describe the specific real-world event(s) that have occurred where this flaw caused harm, and what harm it caused.")
-            implicated_systems = st.text_area("Implicated Systems", 
-                                           help="Name any systems beyond the ones listed above that were involved in the real-world event(s).")
+            incident_desc_field = FormEntry(
+                name="Description of the Incident(s)",
+                title="Description of the Incident(s)",
+                input_type=InputType.TEXT_AREA,
+                help_text="Describe the specific real-world event(s) that have occurred where this flaw caused harm, and what harm it caused.",
+                info_text="The real-world event(s) where the flaw caused harm, and the harm caused"
+            )
+            incident_description = incident_desc_field.to_streamlit()
+            
+            implicated_systems_field = FormEntry(
+                name="Implicated Systems",
+                title="Implicated Systems",
+                input_type=InputType.TEXT_AREA,
+                help_text="Name any systems beyond the ones listed above that were involved in the real-world event(s).",
+                info_text="Other systems involved in event"
+            )
+            implicated_systems = implicated_systems_field.to_streamlit()
         
         with col2:
-            submitter_relationship = st.selectbox("Submitter Relationship", 
-                                               options=["Affected stakeholder", "Independent observer", "System developer", "Other"],
-                                               help="Describe your relationship to the event.")
+            submitter_relation_field = FormEntry(
+                name="Submitter Relationship",
+                title="Submitter Relationship",
+                input_type=InputType.SELECT,
+                options=["Affected stakeholder", "Independent observer", "System developer", "Other"],
+                help_text="Describe your relationship to the event.",
+                info_text="Your relationship to event"
+            )
+            submitter_relationship = submitter_relation_field.to_streamlit()
             submitter_relationship_other = handle_other_option(submitter_relationship, submitter_relationship, 
                                                              "Please specify your relationship:")
-                
-            event_dates = st.date_input("Event Date(s)", 
-                                      help="Enter the date and time when the real-world event occurred, or your best estimation. If the real-world event occurred multiple times, enter the full time range from the first occurrence to the most recent occurrence.")
-            event_locations = st.text_input("Event Location(s)", 
-                                         help="Enter the geographical location in which the real-world event occurred.")
+            
+            event_dates_field = FormEntry(
+                name="Event Date(s)",
+                title="Event Date(s)",
+                input_type=InputType.DATE,
+                help_text="Enter the date and time when the real-world event occurred, or your best estimation. If the real-world event occurred multiple times, enter the full time range from the first occurrence to the most recent occurrence.",
+                info_text="Start date / end date of event"
+            )
+            event_dates = event_dates_field.to_streamlit()
+            
+            event_locations_field = FormEntry(
+                name="Event Location(s)",
+                title="Event Location(s)",
+                input_type=InputType.TEXT,
+                help_text="Enter the geographical location in which the real-world event occurred.",
+                info_text="Geographical location of event"
+            )
+            event_locations = event_locations_field.to_streamlit()
     
     with st.container():
         col1, col2 = st.columns(2)
         
         with col1:
-            experienced_harm_types = st.multiselect("Experienced Harm Types", options=HARM_TYPES, 
-                                                  help="Choose one or more types of harm that resulted from the real-world event(s) involving this flaw.")
+            harm_types_field = FormEntry(
+                name="Experienced Harm Types",
+                title="Experienced Harm Types",
+                input_type=InputType.MULTISELECT,
+                options=HARM_TYPES,
+                help_text="Choose one or more types of harm that resulted from the real-world event(s) involving this flaw.",
+                info_text="Harm caused by the event"
+            )
+            experienced_harm_types = harm_types_field.to_streamlit()
             harm_types_other = handle_other_option(experienced_harm_types, experienced_harm_types, 
                                                 "Please specify other harm types:")
         
         with col2:
-            experienced_harm_severity = st.select_slider("Experienced Harm Severity", options=HARM_SEVERITY_OPTIONS, 
-                                                       help="Your best estimate of how severe the harm caused is.")
+            harm_severity_field = FormEntry(
+                name="Experienced Harm Severity",
+                title="Experienced Harm Severity",
+                input_type=InputType.SELECT_SLIDER,
+                options=HARM_SEVERITY_OPTIONS,
+                help_text="Your best estimate of how severe the harm caused is.",
+                info_text="Severity of the harm caused by the event"
+            )
+            experienced_harm_severity = harm_severity_field.to_streamlit()
     
-    harm_narrative = st.text_area("Harm Narrative (justification of why the event constitutes harm)", 
-                               help="Please describe why the real-world event that occurred is harmful, and how the flaw contributed to it.")
+    harm_narrative_field = FormEntry(
+        name="Harm Narrative",
+        title="Harm Narrative (justification of why the event constitutes harm)",
+        input_type=InputType.TEXT_AREA,
+        help_text="Please describe why the real-world event that occurred is harmful, and how the flaw contributed to it.",
+        info_text="Why the event is harmful and how the flaw contributed to it"
+    )
+    harm_narrative = harm_narrative_field.to_streamlit()
     
     return {
         "Description of the Incident(s)": incident_description,
@@ -215,13 +339,27 @@ def display_malign_actor_fields():
     
     col1, col2 = st.columns(2)
     with col1:
-        tactic_select = st.multiselect("Tactic Select (e.g., from MITRE's ATLAS Matrix)", options=TACTIC_OPTIONS, 
-                                     help="Choose one or more tactic that could be used to exploit the flaw.")
+        tactic_field = FormEntry(
+            name="Tactic Select",
+            title="Tactic Select (e.g., from MITRE's ATLAS Matrix)",
+            input_type=InputType.MULTISELECT,
+            options=TACTIC_OPTIONS,
+            help_text="Choose one or more tactics that could be used to exploit the flaw.",
+            info_text="Tactic(s) that could be used to exploit the flaw"
+        )
+        tactic_select = tactic_field.to_streamlit()
         tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
             
     with col2:
-        impact = st.multiselect("Impact", options=IMPACT_TYPE_OPTIONS, 
-                              help="Describe the potential impact of the flaw.")
+        impact_field = FormEntry(
+            name="Impact",
+            title="Impact",
+            input_type=InputType.MULTISELECT,
+            options=IMPACT_TYPE_OPTIONS,
+            help_text="Describe the potential impact of the flaw.",
+            info_text="Potential impact of the flaw"
+        )
+        impact = impact_field.to_streamlit()
         impact_other = handle_other_option(impact, impact, "Please specify other impacts:")
     
     return {
@@ -237,14 +375,28 @@ def display_security_incident_fields():
     
     col1, col2 = st.columns(2)
     with col1:
-        threat_actor_intent = st.radio("Threat Actor Intent", options=THREAT_ACTOR_INTENT_OPTIONS, 
-                                     help="Describe the intent of the threat actor.")
+        threat_actor_field = FormEntry(
+            name="Threat Actor Intent",
+            title="Threat Actor Intent",
+            input_type=InputType.RADIO,
+            options=THREAT_ACTOR_INTENT_OPTIONS,
+            help_text="Describe the intent of the threat actor.",
+            info_text="Intent of the threat actor"
+        )
+        threat_actor_intent = threat_actor_field.to_streamlit()
         threat_actor_intent_other = handle_other_option(threat_actor_intent, threat_actor_intent, 
                                                      "Please specify other threat actor intent:")
             
     with col2:
-        detection = st.multiselect("Detection", options=DETECTION_METHODS, 
-                                 help="Describe how you came to know about this real-world event, including which methods you used to discover and observe it.")
+        detection_field = FormEntry(
+            name="Detection",
+            title="Detection",
+            input_type=InputType.MULTISELECT,
+            options=DETECTION_METHODS,
+            help_text="Describe how you came to know about this real-world event, including which methods you used to discover and observe it.",
+            info_text="How you learnt about flaw"
+        )
+        detection = detection_field.to_streamlit()
         detection_other = handle_other_option(detection, detection, "Please specify other detection methods:")
     
     return {
@@ -258,8 +410,14 @@ def display_vulnerability_fields():
     """Display fields for Vulnerability report type"""
     st.subheader("Vulnerability Details")
     
-    proof_of_concept = st.text_area("Proof-of-Concept Exploit", 
-                                 help="Provide code and documentation that proves the existence of a vulnerability.")
+    poc_field = FormEntry(
+        name="Proof-of-Concept Exploit",
+        title="Proof-of-Concept Exploit",
+        input_type=InputType.TEXT_AREA,
+        help_text="Provide code and documentation that proves the existence of a vulnerability.",
+        info_text="Code and documentation documenting the vulnerability"
+    )
+    proof_of_concept = poc_field.to_streamlit()
     
     return {
         "Proof-of-Concept Exploit": proof_of_concept
@@ -269,14 +427,32 @@ def display_hazard_fields():
     """Display fields for Hazard report type"""
     st.subheader("Hazard Details")
     
-    examples = st.text_area("Examples (list of system inputs/outputs)", 
-                          help="Provide a list of system inputs/outputs that help understand how to replicate the flaw.")
+    examples_field = FormEntry(
+        name="Examples",
+        title="Examples (list of system inputs/outputs)",
+        input_type=InputType.TEXT_AREA,
+        help_text="Provide a list of AI system inputs/outputs that help understand how to reproduce the flaw.",
+        info_text="AI system inputs/outputs that help reproduce the flaw"
+    )
+    examples = examples_field.to_streamlit()
     
-    replication_packet = st.text_area("Replication Packet (files evidencing the flaw)", 
-                                   help="Provide data that helps replicate the flaw, e.g. test data, custom evaluations or structured datasets used.")
+    replication_field = FormEntry(
+        name="Replication Packet",
+        title="Replication Packet (files evidencing the flaw)",
+        input_type=InputType.TEXT_AREA,
+        help_text="Provide data that helps reproduce the flaw, e.g. test data, custom evaluations or structured datasets used.",
+        info_text="Data that help reproduce the flaw"
+    )
+    replication_packet = replication_field.to_streamlit()
     
-    statistical_argument = st.text_area("Statistical Argument (supporting evidence of a flaw)", 
-                                     help="Provide your reasoning why this flaw is statistically likely to occur and not a one-off event.")
+    statistical_field = FormEntry(
+        name="Statistical Argument",
+        title="Statistical Argument (supporting evidence of a flaw)",
+        input_type=InputType.TEXT_AREA,
+        help_text="Provide your reasoning why this flaw is statistically likely to reoccur and not a one-off event.",
+        info_text="Reasoning why this flaw is statistically likely to reoccur"
+    )
+    statistical_argument = statistical_field.to_streamlit()
     
     return {
         "Examples": examples,
@@ -292,28 +468,40 @@ def display_disclosure_plan():
         col1, col2 = st.columns(2)
         
         with col1:
-            disclosure_intent = st.radio(
-                "Do you intend to publicly disclose this issue?",
+            disclosure_intent_field = FormEntry(
+                name="Disclosure Intent",
+                title="Do you intend to publicly disclose this issue?",
+                input_type=InputType.RADIO,
                 options=["Yes", "No", "Undecided"],
-                help="Required field"
+                help_text="Required field",
+                info_text=""
             )
+            disclosure_intent = disclosure_intent_field.to_streamlit()
             
             if disclosure_intent == "Yes":
-                disclosure_timeline = st.selectbox(
-                    "Planned disclosure timeline",
+                disclosure_timeline_field = FormEntry(
+                    name="Disclosure Timeline",
+                    title="Planned disclosure timeline",
+                    input_type=InputType.SELECT,
                     options=["Immediate (0 days)", "Short-term (1-30 days)", "Medium-term (31-90 days)", "Long-term (90+ days)"],
-                    help="When do you plan to publicly disclose this issue?"
+                    help_text="When do you plan to publicly disclose this issue?",
+                    info_text=""
                 )
+                disclosure_timeline = disclosure_timeline_field.to_streamlit()
             else:
                 disclosure_timeline = None
             
         with col2:
             if disclosure_intent == "Yes":
-                disclosure_channels = st.multiselect(
-                    "Disclosure channels",
+                disclosure_channels_field = FormEntry(
+                    name="Disclosure Channels",
+                    title="Disclosure channels",
+                    input_type=InputType.MULTISELECT,
                     options=["Academic paper", "Blog post", "Social media", "Media outlet", "Conference presentation", "Other"],
-                    help="Where do you plan to disclose this issue?"
+                    help_text="Where do you plan to disclose this issue?",
+                    info_text=""
                 )
+                disclosure_channels = disclosure_channels_field.to_streamlit()
                 disclosure_channels_other = handle_other_option(disclosure_channels, disclosure_channels, 
                                                   "Please specify other disclosure channels:")
             else:
@@ -322,10 +510,14 @@ def display_disclosure_plan():
     
     # Only show embargo request if they plan to disclose
     if disclosure_intent == "Yes":
-        embargo_request = st.text_area(
-            "Embargo request details",
-            help="If you're requesting an embargo period before public disclosure, please provide details"
+        embargo_field = FormEntry(
+            name="Embargo Request",
+            title="Embargo request details",
+            input_type=InputType.TEXT_AREA,
+            help_text="If you're requesting an embargo period before public disclosure, please provide details",
+            info_text=""
         )
+        embargo_request = embargo_field.to_streamlit()
     else:
         embargo_request = ""
     
