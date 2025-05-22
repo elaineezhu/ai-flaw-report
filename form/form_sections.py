@@ -55,14 +55,14 @@ def display_basic_information():
 def display_common_fields():
     """Display and gather common fields section with improved Risks and Impacts"""
     
-    # Context Info
-    context_info = form_entries["context_info"].to_streamlit()
-    
     # Flaw Description
     flaw_description = form_entries["flaw_description"].to_streamlit()
     
     # Policy Violation
     policy_violation = form_entries["policy_violation"].to_streamlit()
+    
+    # Context Info
+    context_info = form_entries["context_info"].to_streamlit()
     
     # Risks and Impacts section
     st.subheader("Risks and Impacts")
@@ -123,19 +123,12 @@ def display_real_world_event_fields():
     st.subheader("Real-World Incident Details")
     
     with st.container():
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            incident_description = form_entries["incident_description"].to_streamlit()
-            implicated_systems = form_entries["implicated_systems"].to_streamlit()
-        
-        with col2:
-            submitter_relationship = form_entries["submitter_relationship"].to_streamlit()
-            submitter_relationship_other = handle_other_option(submitter_relationship, submitter_relationship, 
+        submitter_relationship = form_entries["submitter_relationship"].to_streamlit()
+        submitter_relationship_other = handle_other_option(submitter_relationship, submitter_relationship, 
                                                              "Please specify your relationship:")
             
-            event_dates = form_entries["event_dates"].to_streamlit()
-            event_locations = form_entries["event_locations"].to_streamlit()
+        event_dates = form_entries["event_dates"].to_streamlit()
+        event_locations = form_entries["event_locations"].to_streamlit()
     
     with st.container():
         col1, col2 = st.columns(2)
@@ -151,8 +144,6 @@ def display_real_world_event_fields():
     harm_narrative = form_entries["harm_narrative"].to_streamlit()
     
     return {
-        "Description of the Incident(s)": incident_description,
-        "Implicated Systems": implicated_systems,
         "Submitter Relationship": submitter_relationship,
         "Submitter_Relationship_Other": submitter_relationship_other,
         "Incident Date(s)": event_dates.isoformat() if event_dates else None,
@@ -217,15 +208,11 @@ def display_vulnerability_fields():
 def display_hazard_fields():
     """Display fields for Hazard report type"""
     st.subheader("Hazard Details")
-    
-    examples = form_entries["examples"].to_streamlit()
-    replication_packet = form_entries["replication_packet"].to_streamlit()
+
     statistical_argument = form_entries["statistical_argument"].to_streamlit()
     
     return {
-        "Examples": examples,
-        "Replication Packet": replication_packet,
-        "Statistical Argument": statistical_argument
+        "Statistical Argument with Examples": statistical_argument
     }
 
 def display_disclosure_plan():

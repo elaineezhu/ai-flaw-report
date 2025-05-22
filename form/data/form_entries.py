@@ -69,7 +69,7 @@ form_entries = {
         title="Flaw Description (identification, reproduction, how it violates system policies)",
         input_type=InputType.TEXT_AREA,
         help_text="Describe the flaw, how you identified it, how it can be reproduced, and how it violates user expectations of the AI system or AI system policies. Add as much detail as possible to help reproduce and mitigate the flaw.",
-        info_text="Flaw description, identification details, reproduction instructions, which policies/expectations were violated"
+        info_text="Describe the following about the flow: (1) a detailed description of the flaw, (2) what undesirable outputs, effects, or impacts you observed, (3) how specifically to reproduce it (the inputs, actions, and/or links to any code), and (4) for probabilistic flaws, have you shown/verified it happens systematically for many inputs or conditions?"
     ),
     
     "policy_violation": FormEntry(
@@ -131,22 +131,6 @@ form_entries = {
     ),
     
     # Real-World Event Fields
-    "incident_description": FormEntry(
-        name="Description of the Incident(s)",
-        title="Description of the Incident(s)",
-        input_type=InputType.TEXT_AREA,
-        help_text="Describe the specific real-world event(s) that have occurred where this flaw caused harm, and what harm it caused.",
-        info_text="The real-world event(s) where the flaw caused harm, and the harm caused"
-    ),
-    
-    "implicated_systems": FormEntry(
-        name="Implicated Systems",
-        title="Implicated Systems",
-        input_type=InputType.TEXT_AREA,
-        help_text="Name any systems beyond the ones listed above that were involved in the real-world event(s).",
-        info_text="Other systems involved in event"
-    ),
-    
     "submitter_relationship": FormEntry(
         name="Submitter Relationship",
         title="Submitter Relationship",
@@ -246,25 +230,9 @@ form_entries = {
     ),
     
     # Hazard Fields
-    "examples": FormEntry(
-        name="Examples",
-        title="Examples (list of system inputs/outputs)",
-        input_type=InputType.TEXT_AREA,
-        help_text="Provide a list of AI system inputs/outputs that help understand how to reproduce the flaw.",
-        info_text="AI system inputs/outputs that help reproduce the flaw"
-    ),
-    
-    "replication_packet": FormEntry(
-        name="Replication Packet",
-        title="Replication Packet (files evidencing the flaw)",
-        input_type=InputType.TEXT_AREA,
-        help_text="Provide data that helps reproduce the flaw, e.g. test data, custom evaluations or structured datasets used.",
-        info_text="Data that help reproduce the flaw"
-    ),
-    
     "statistical_argument": FormEntry(
-        name="Statistical Argument",
-        title="Statistical Argument (supporting evidence of a flaw)",
+        name="Statistical Argument with Examples",
+        title="Statistical Arguments with Examples (reasoning why this flaw is statistically likely to reoccur)",
         input_type=InputType.TEXT_AREA,
         help_text="Provide your reasoning why this flaw is statistically likely to reoccur and not a one-off event.",
         info_text="Reasoning why this flaw is statistically likely to reoccur"
