@@ -36,12 +36,22 @@ form_entries = {
         help_text="Many AI chatbots have a 'share' feature, that generate a shareable link for a specific conversation. This allows reporter reviewers to more easily reproduce these findings.",
         info_text="Session link or ID for a session that shows the flaw"
     ),
+
+    "ai_systems": FormEntry(
+        name="ai_systems",
+        title="AI System(s)",
+        input_type=InputType.MULTISELECT,
+        options=[],
+        required=True,
+        info_text="AI systems and versions involved in the flaw",
+        help_text="Select one or more AI systems and versions involved in the flaw you are reporting."
+    ),
     
     "flaw_timestamp_start": FormEntry(
         name="Flaw Timestamp Start",
         title="When was the flaw first identified?",
         input_type=InputType.DATE,
-        required=False,
+        required=True,
         help_text="In cases where systems frequently change, this can help reproduce the context.",
         info_text="Start date of flaw"
     ),
@@ -50,7 +60,7 @@ form_entries = {
         name="Incident Timestamp Start",
         title="When did the incident occur?",
         input_type=InputType.DATE,
-        required=False,
+        required=True,
         help_text="Enter the date and time when the real-world incident occurred, or your best estimation.",
         info_text="Start date of incident"
     ),
@@ -61,7 +71,7 @@ form_entries = {
         title="Context Information (versions of other software/hardware involved)",
         input_type=InputType.TEXT_AREA,
         help_text="Enter the versions of other software or hardware systems involved in the flaw if applicable. For example, if you used an open-source model, add information on the hardware you are running it on.",
-        info_text="Versions of other software or hardware systems involved in the flaw"
+        info_text="Versions of other software or hardware systems involved in the flaw",
     ),
     
     "flaw_description": FormEntry(

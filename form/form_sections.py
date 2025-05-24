@@ -25,17 +25,13 @@ def display_basic_information():
             
             systems_options = get_systems_options(use_api=use_api)
             
-            st.write("**AI System(s)**")
-            st.caption("AI systems and versions involved in the flaw")
+            form_entries["ai_systems"].options = systems_options
+            form_entries["ai_systems"].extra_params = {
+                "key": "systems_selections",
+                "placeholder": "Choose AI systems..."
+            }
             
-            systems = st.multiselect(
-                label="AI System(s)",
-                options=systems_options,
-                default=None,
-                help="Select one or more AI systems and versions involved in the flaw you are reporting.",
-                placeholder="Choose AI systems...",
-                key="systems_selections"
-            )
+            systems = form_entries["ai_systems"].to_streamlit()
         
         with col2:
             session_id = form_entries["session_id"].to_streamlit()

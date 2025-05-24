@@ -46,6 +46,12 @@ class FormEntry:
         self.validation = validation
         self.extra_params = extra_params or {}
         
+    def _get_display_title(self) -> str:
+        """Get the title with red asterisk if required"""
+        if self.required:
+            return f"{self.title} <span style='color:red'>*</span>"
+        return self.title
+        
     def to_streamlit(self, container=None) -> Any:
         """Render this field using Streamlit components"""
         # Use the container if provided, otherwise use st directly
@@ -54,8 +60,10 @@ class FormEntry:
         help_text = self.help_text
         if self.required:
             help_text = f"{help_text} (Required)" if help_text else "Required field"
-            
-        ui.markdown(f"**{self.title}**")
+        
+        # Use the display title with asterisk for required fields
+        display_title = self._get_display_title()
+        ui.markdown(f"**{display_title}**", unsafe_allow_html=True)
         
         if self.info_text:
             ui.caption(self.info_text)
@@ -126,8 +134,10 @@ class FormEntry:
             )
             
         elif self.input_type == InputType.CHECKBOX:
+            # For checkboxes, we put the asterisk in the checkbox label itself
+            checkbox_title = self._get_display_title() if self.input_type == InputType.CHECKBOX else self.title
             result = ui.checkbox(
-                self.title,
+                checkbox_title,
                 value=self.default if self.default is not None else False,
                 help=help_text,
                 key=self.extra_params.get("key", self.name),
