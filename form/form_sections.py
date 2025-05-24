@@ -83,7 +83,7 @@ def display_common_fields():
         key="policy_violation"
     )
     
-    # Risks and Impacts
+    # Risks and Impacts section
     st.subheader("Risks and Impacts")
     
     col1, col2 = st.columns(2)
@@ -92,7 +92,7 @@ def display_common_fields():
     with col2:
         severity = form_entries["severity"].to_streamlit()
     
-    # Impacts and Stakeholders
+    # Impacts and Stakeholders - FIXED: Now capturing the values
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("**Impacts** <span style='color:red'>*</span>", unsafe_allow_html=True)
@@ -131,8 +131,8 @@ def display_common_fields():
         "Policy Violation": policy_violation,
         "Prevalence": prevalence,
         "Severity": severity,
-        "Impacts": impacts,
-        "Impacted Stakeholder(s)": impacted_stakeholders, 
+        "Impacts": impacts, 
+        "Impacted Stakeholder(s)": impacted_stakeholders,
         "Risk Source(s)": risk_sources
     }
 

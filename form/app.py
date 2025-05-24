@@ -394,26 +394,7 @@ def create_app():
             required_fields = []
             
             required_fields.extend(["Flaw Description", "Policy Violation", "Impacts", "Impacted Stakeholder(s)"])
-            
-            # Add type-specific required fields
-            if "Real-World Incidents" in report_types:
-                required_fields.extend([
-                    "Description of the Incident(s)", "Implicated Systems", "Incident Location(s)",
-                    "Experienced Harm Types", "Harm Narrative"
-                ])
-            
-            if "Malign Actor" in report_types:
-                required_fields.extend(["Tactic Select", "Impact"])
-            
-            if "Security Incident Report" in report_types:
-                required_fields.append("Detection")
-            
-            if "Vulnerability Report" in report_types:
-                required_fields.append("Proof-of-Concept Exploit")
-            
-            if "Hazard Report" in report_types:
-                required_fields.extend(["Examples", "Replication Packet", "Statistical Argument"])
-            
+
             # Add disclosure plan required field
             required_fields.append("Disclosure Intent")
             

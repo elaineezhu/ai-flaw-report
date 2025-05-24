@@ -146,16 +146,16 @@ form_entries = {
         title="Submitter Relationship",
         input_type=InputType.SELECT,
         options=["Affected stakeholder", "Independent observer", "System developer", "Other"],
-        help_text="Describe your relationship to the event.",
-        info_text="Your relationship to event"
+        help_text="Describe your relationship to the incident.",
+        info_text="Your relationship to incident"
     ),
         
     "event_locations": FormEntry(
-        name="Event Location(s)",
-        title="Event Location(s)",
+        name="Incident Location(s)",
+        title="Incident Location(s)",
         input_type=InputType.TEXT,
-        help_text="Enter the geographical location in which the real-world event occurred.",
-        info_text="Geographical location of event"
+        help_text="Enter the geographical location in which the real-world incident occurred.",
+        info_text="Geographical location of incident"
     ),
     
     "experienced_harm_types": FormEntry(
@@ -163,8 +163,8 @@ form_entries = {
         title="Experienced Harm Types",
         input_type=InputType.MULTISELECT,
         options=HARM_TYPES,
-        help_text="Choose one or more types of harm that resulted from the real-world event(s) involving this flaw.",
-        info_text="Harm caused by the event"
+        help_text="Choose one or more types of harm that resulted from the real-world incident(s) involving this flaw.",
+        info_text="Harm caused by the incident"
     ),
     
     "experienced_harm_severity": FormEntry(
@@ -173,15 +173,15 @@ form_entries = {
         input_type=InputType.SELECT_SLIDER,
         options=HARM_SEVERITY_OPTIONS,
         help_text="Your best estimate of how severe the harm caused is.",
-        info_text="Severity of the harm caused by the event"
+        info_text="Severity of the harm caused by the incident"
     ),
     
     "harm_narrative": FormEntry(
         name="Harm Narrative",
-        title="Harm Narrative (justification of why the event constitutes harm)",
+        title="Harm Narrative (justification of why the incident constitutes harm)",
         input_type=InputType.TEXT_AREA,
-        help_text="Please describe why the real-world event that occurred is harmful, and how the flaw contributed to it.",
-        info_text="Why the event is harmful and how the flaw contributed to it"
+        help_text="Please describe why the real-world incident that occurred is harmful, and how the flaw contributed to it.",
+        info_text="Why the incident is harmful and how the flaw contributed to it"
     ),
     
     # Malign Actor Fields
@@ -218,7 +218,7 @@ form_entries = {
         title="Detection",
         input_type=InputType.MULTISELECT,
         options=DETECTION_METHODS,
-        help_text="Describe how you came to know about this real-world event, including which methods you used to discover and observe it.",
+        help_text="Describe how you came to know about this real-world incident, including which methods you used to discover and observe it.",
         info_text="How you learnt about flaw"
     ),
     
@@ -236,7 +236,7 @@ form_entries = {
         name="Statistical Argument with Examples",
         title="Statistical Arguments with Examples (reasoning why this flaw is statistically likely to reoccur)",
         input_type=InputType.TEXT_AREA,
-        help_text="Provide your reasoning why this flaw is statistically likely to reoccur and not a one-off event.",
+        help_text="Provide your reasoning why this flaw is statistically likely to reoccur and not a one-off incident.",
         info_text="Reasoning why this flaw is statistically likely to reoccur"
     ),
     
