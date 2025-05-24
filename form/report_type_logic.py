@@ -5,9 +5,9 @@ def determine_report_types(involves_real_world_incident, involves_threat_actor):
     # Only determine report types if both questions have been answered
     if involves_real_world_incident is not None and involves_threat_actor is not None:
         if involves_real_world_incident and involves_threat_actor:
-            report_types = ["Real-World Events", "Malign Actor", "Security Incident Report"]
+            report_types = ["Real-World Incidents", "Malign Actor", "Security Incident Report"]
         elif involves_real_world_incident:
-            report_types = ["Real-World Events"]
+            report_types = ["Real-World Incidents"]
         elif involves_threat_actor:
             report_types = ["Malign Actor", "Vulnerability Report"]
         else:

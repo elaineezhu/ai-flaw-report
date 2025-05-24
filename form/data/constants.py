@@ -124,7 +124,7 @@ HARM_TYPES = [
     "Environmental",
     "Public interest/critical infrastructure",
     "Fundamental rights",
-    "CSAM",
+    "Child sexual-abuse material (CSAM)",
     "Other"
 ]
 
