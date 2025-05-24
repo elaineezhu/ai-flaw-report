@@ -71,7 +71,7 @@ def display_common_fields():
     flaw_description = form_entries["flaw_description"].to_streamlit()
     
     # Policy Violation
-    st.write("**Policy Violation (how expectations of the system are violated)**")
+    st.markdown("**Policy Violation (how expectations of the system are violated)** <span style='color:red'>*</span>", unsafe_allow_html=True)
     st.caption("Pointer to relevant policies, documentation, etc. showing that the flaw violates them")
     
     selected_systems = st.session_state.get('systems_selections', [])
@@ -79,10 +79,11 @@ def display_common_fields():
     
     policy_violation = st.text_area(
         label="",
-        help="Provide evidence that the identified flaw is undesirable, or has violated expectations of the AI system. Ideally, point to a documented system policy, acceptable usage policy, or terms that indicate this is undesirable. Explain your reasoning.",
+        help="Provide evidence that the identified flaw is undesirable, or has violated expectations of the AI system. Ideally, point to a documented system policy, acceptable usage policy, or terms that indicate this is undesirable. Explain your reasoning. (Required)",
+        key="policy_violation"
     )
     
-    # Risks and Impacts section
+    # Risks and Impacts
     st.subheader("Risks and Impacts")
     
     col1, col2 = st.columns(2)
@@ -94,35 +95,45 @@ def display_common_fields():
     # Impacts and Stakeholders
     col1, col2 = st.columns(2)
     with col1:
-        st.multiselect(
-                label="Impacts",
+        st.markdown("**Impacts** <span style='color:red'>*</span>", unsafe_allow_html=True)
+        impacts = st.multiselect(
+                label="",
                 options=IMPACT_OPTIONS,
                 default=None,
-                help="Choose impacts that affected stakeholders may experience if the flaw is not addressed.",
+                help="Choose impacts that affected stakeholders may experience if the flaw is not addressed. (Required)",
+                key="impacts_select"
             )
             
     with col2:
-        st.multiselect(
-                label="Impacted Stakeholder(s)",
+        st.markdown("**Impacted Stakeholder(s)** <span style='color:red'>*</span>", unsafe_allow_html=True)
+        impacted_stakeholders = st.multiselect(
+                label="",
                 options=STAKEHOLDER_OPTIONS,
                 default=None,
-                help="Choose stakeholders who may suffer if the flaw is not addressed.",
+                help="Choose stakeholders who may suffer if the flaw is not addressed. (Required)",
+                key="stakeholders_select"
             )
+    
     # Risk Source
     col1, col2 = st.columns(2)
     with col1:
-        st.multiselect(
-                label="Risk Source(s)",
+        st.markdown("**Risk Source(s)**", unsafe_allow_html=True)
+        risk_sources = st.multiselect(
+                label="",
                 options=RISK_SOURCE_OPTIONS,
                 default=None,
                 help="Choose presumed sources of the flaw.",
+                key="risk_sources_select"
             )
     
     return {
         "Flaw Description": flaw_description,
         "Policy Violation": policy_violation,
         "Prevalence": prevalence,
-        "Severity": severity
+        "Severity": severity,
+        "Impacts": impacts,
+        "Impacted Stakeholder(s)": impacted_stakeholders, 
+        "Risk Source(s)": risk_sources
     }
 
 def display_real_world_event_fields():
