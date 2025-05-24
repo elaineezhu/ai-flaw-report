@@ -264,3 +264,145 @@ def searchable_select_with_other(available_models, key_prefix, title=None, capti
         )
     
     return selected, other_text
+
+def searchable_dropdown_selector(available_models, key_prefix="model", max_selections=10, help_text=None):
+    """
+    A searchable dropdown selector where selected models appear as tags in the search bar
+    
+    Args:
+        available_models (list): List of available model options to choose from
+        key_prefix (str): Prefix for session state keys to avoid conflicts
+        max_selections (int): Maximum number of models that can be selected
+        help_text (str): Help text to display with the selector
+    
+    Returns:
+        list: List of selected models
+    """
+    
+    def on_input_change():
+        current_input = st.session_state[f"{key_prefix}_text_input"].strip()
+        st.session_state[f"{key_prefix}_current_input"] = current_input
+        
+        if current_input:
+            input_lower = current_input.lower()
+            
+            # Find exact matches first
+            exact_matches = [model for model in available_models 
+                            if input_lower in model.lower() 
+                            and model not in st.session_state[f"{key_prefix}_selections"]]
+            
+            if not exact_matches:
+                # Fall back to close matches if no exact matches
+                close_matches = get_close_matches(current_input, available_models, n=10, cutoff=0.4)
+                suggestions = [match for match in close_matches 
+                              if match not in st.session_state[f"{key_prefix}_selections"]]
+            else:
+                # Sort exact matches by length (shorter first) and alphabetically
+                suggestions = sorted(exact_matches, key=lambda x: (len(x), x))[:10]
+            
+            st.session_state[f"{key_prefix}_suggestions"] = suggestions
+        else:
+            # Show popular models when no input
+            popular_models = [model for model in available_models[:20] 
+                             if model not in st.session_state[f"{key_prefix}_selections"] and model != "Other"]
+            st.session_state[f"{key_prefix}_suggestions"] = popular_models
+    
+    def add_selection(model_name):
+        if model_name and model_name not in st.session_state[f"{key_prefix}_selections"]:
+            if len(st.session_state[f"{key_prefix}_selections"]) < max_selections:
+                st.session_state[f"{key_prefix}_selections"].append(model_name)
+                st.session_state[f"{key_prefix}_current_input"] = ""
+                st.session_state[f"{key_prefix}_text_input"] = ""
+                st.rerun()
+            else:
+                st.warning(f"Maximum of {max_selections} models can be selected.")
+    
+    def remove_selection(index):
+        if 0 <= index < len(st.session_state[f"{key_prefix}_selections"]):
+            st.session_state[f"{key_prefix}_selections"].pop(index)
+            st.rerun()
+    
+    # Initialize session state
+    if f"{key_prefix}_selections" not in st.session_state:
+        st.session_state[f"{key_prefix}_selections"] = []
+    
+    if f"{key_prefix}_current_input" not in st.session_state:
+        st.session_state[f"{key_prefix}_current_input"] = ""
+    
+    if f"{key_prefix}_suggestions" not in st.session_state:
+        # Show popular models initially
+        popular_models = [model for model in available_models[:20] 
+                         if model != "Other"]
+        st.session_state[f"{key_prefix}_suggestions"] = popular_models
+    
+    # Display selected models as tags above the search box
+    if st.session_state[f"{key_prefix}_selections"]:
+        st.write("**Selected:**")
+        
+        # Create a container for the tags
+        tag_container = st.container()
+        with tag_container:
+            # Display tags in rows of 3
+            selections = st.session_state[f"{key_prefix}_selections"]
+            for i in range(0, len(selections), 3):
+                cols = st.columns(3)
+                for j, selection in enumerate(selections[i:i+3]):
+                    with cols[j]:
+                        # Create a tag-like button with remove functionality
+                        col1, col2 = st.columns([4, 1])
+                        with col1:
+                            st.button(
+                                f"🏷️ {selection}",
+                                key=f"{key_prefix}_tag_{i+j}",
+                                disabled=True,
+                                use_container_width=True
+                            )
+                        with col2:
+                            if st.button("✕", key=f"{key_prefix}_remove_{i+j}", help="Remove"):
+                                remove_selection(i+j)
+        
+        st.markdown("---")
+    
+    # Search input
+    search_placeholder = f"Search AI systems... ({len(st.session_state[f'{key_prefix}_selections'])}/{max_selections} selected)"
+    
+    current_input = st.text_input(
+        "",
+        key=f"{key_prefix}_text_input",
+        value=st.session_state[f"{key_prefix}_current_input"],
+        on_change=on_input_change,
+        placeholder=search_placeholder,
+        help=help_text,
+        disabled=len(st.session_state[f"{key_prefix}_selections"]) >= max_selections
+    )
+    
+    # Show max selections warning
+    if len(st.session_state[f"{key_prefix}_selections"]) >= max_selections:
+        st.warning(f"Maximum of {max_selections} models selected.")
+        return st.session_state[f"{key_prefix}_selections"]
+    
+    # Display suggestions as dropdown-style options
+    suggestions = st.session_state[f"{key_prefix}_suggestions"]
+    if suggestions:
+        if current_input:
+            st.caption(f"Found {len(suggestions)} matches - click to select:")
+        else:
+            st.caption("Popular AI systems - click to select:")
+        
+        # Display suggestions in a more compact dropdown-like format
+        for i, suggestion in enumerate(suggestions[:8]):  # Limit to 8 suggestions
+            if st.button(
+                f"➕ {suggestion}", 
+                key=f"{key_prefix}_suggestion_{i}",
+                use_container_width=True
+            ):
+                add_selection(suggestion)
+    
+    elif current_input and not suggestions:
+        st.write("No matching models found.")
+        
+        # Allow custom entry
+        if st.button(f"➕ Add '{current_input}' as custom entry", key=f"{key_prefix}_add_custom"):
+            add_selection(current_input)
+    
+    return st.session_state[f"{key_prefix}_selections"]

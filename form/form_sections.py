@@ -1,8 +1,9 @@
 import streamlit as st
 from form.utils.helpers import handle_other_option
-from form.data.hf_get_models import searchable_model_selector, get_systems_options
+from form.data.hf_get_models import get_systems_options
 from form.data.form_entries import form_entries
-from form.data.hf_get_models import searchable_select_with_other 
+from form.report_type_logic import determine_report_types
+from form.data.policy_mappings import display_policy_links
 from form.data.constants import *
 import uuid
 
@@ -26,21 +27,37 @@ def display_basic_information():
             
             st.write("**AI System(s)**")
             st.caption("AI systems and versions involved in the flaw")
-            systems = searchable_model_selector(
-                available_models=systems_options,
-                key_prefix="systems",
-                max_selections=20,
-                help_text="Select one or more AI systems and versions involved in the flaw you are reporting."
+            
+            systems = st.multiselect(
+                label="AI System(s)",
+                options=systems_options,
+                default=None,
+                help="Select one or more AI systems and versions involved in the flaw you are reporting.",
+                placeholder="Choose AI systems...",
+                key="systems_selections"
             )
         
         with col2:
             session_id = form_entries["session_id"].to_streamlit()
             
-            timestamp_col1, timestamp_col2 = st.columns(2)
-            with timestamp_col1:
+            involves_incident_types = (
+                st.session_state.get('involves_real_world_incident')
+            )
+            
+            report_types = determine_report_types(
+                st.session_state.get('involves_real_world_incident'), 
+                st.session_state.get('involves_threat_actor')
+            )
+            
+            uses_incident_timestamp = any(report_type in report_types for report_type in [
+                "Real-World Incidents", 
+                "Security Incident Report"
+            ])
+            
+            if uses_incident_timestamp:
+                flaw_timestamp_start = form_entries["incident_timestamp_start"].to_streamlit()
+            else:
                 flaw_timestamp_start = form_entries["flaw_timestamp_start"].to_streamlit()
-            with timestamp_col2:
-                flaw_timestamp_end = form_entries["flaw_timestamp_end"].to_streamlit()
     
     reporter_id = contact_info if contact_info else f"anonymous-{str(uuid.uuid4())[:8]}"
 
@@ -48,7 +65,6 @@ def display_basic_information():
         "Reporter ID": reporter_id,
         "Session ID": session_id,
         "Flaw Timestamp Start": flaw_timestamp_start.isoformat() if flaw_timestamp_start else None,
-        "Flaw Timestamp End": flaw_timestamp_end.isoformat() if flaw_timestamp_end else None,
         "Systems": systems,
     }
 
@@ -59,10 +75,16 @@ def display_common_fields():
     flaw_description = form_entries["flaw_description"].to_streamlit()
     
     # Policy Violation
-    policy_violation = form_entries["policy_violation"].to_streamlit()
+    st.write("**Policy Violation (how expectations of the system are violated)**")
+    st.caption("Pointer to relevant policies, documentation, etc. showing that the flaw violates them")
     
-    # Context Info
-    context_info = form_entries["context_info"].to_streamlit()
+    selected_systems = st.session_state.get('systems_selections', [])
+    display_policy_links(selected_systems)
+    
+    policy_violation = st.text_area(
+        label="",
+        help="Provide evidence that the identified flaw is undesirable, or has violated expectations of the AI system. Ideally, point to a documented system policy, acceptable usage policy, or terms that indicate this is undesirable. Explain your reasoning.",
+    )
     
     # Risks and Impacts section
     st.subheader("Risks and Impacts")
@@ -76,46 +98,35 @@ def display_common_fields():
     # Impacts and Stakeholders
     col1, col2 = st.columns(2)
     with col1:
-        impacts, impacts_other = searchable_select_with_other(
-            available_models=IMPACT_OPTIONS,
-            key_prefix="impacts",
-            title="Impacts",
-            caption="Choose impacts that affected stakeholders may experience if the flaw is not addressed",
-            max_selections=10
-        )
+        st.multiselect(
+                label="Impacts",
+                options=IMPACT_OPTIONS,
+                default=None,
+                help="Choose impacts that affected stakeholders may experience if the flaw is not addressed.",
+            )
             
     with col2:
-        impacted_stakeholders, impacted_stakeholders_other = searchable_select_with_other(
-            available_models=STAKEHOLDER_OPTIONS,
-            key_prefix="stakeholders",
-            title="Impacted Stakeholder(s)",
-            caption="Choose stakeholders who may suffer if the flaw is not addressed",
-            max_selections=10
-        )
-    
+        st.multiselect(
+                label="Impacted Stakeholder(s)",
+                options=STAKEHOLDER_OPTIONS,
+                default=None,
+                help="Choose stakeholders who may suffer if the flaw is not addressed.",
+            )
     # Risk Source
     col1, col2 = st.columns(2)
     with col1:
-        risk_source, risk_source_other = searchable_select_with_other(
-            available_models=RISK_SOURCE_OPTIONS,
-            key_prefix="risk_source",
-            title="Risk Source",
-            caption="Choose presumed sources of the flaw",
-            max_selections=10
-        )
-
+        st.multiselect(
+                label="Risk Source(s)",
+                options=RISK_SOURCE_OPTIONS,
+                default=None,
+                help="Choose presumed sources of the flaw.",
+            )
+    
     return {
-        "Context Info": context_info,
         "Flaw Description": flaw_description,
         "Policy Violation": policy_violation,
-        "Severity": severity,
         "Prevalence": prevalence,
-        "Impacts": impacts,
-        "Impacts_Other": impacts_other,
-        "Impacted Stakeholder(s)": impacted_stakeholders,
-        "Impacted_Stakeholders_Other": impacted_stakeholders_other,
-        "Risk Source": risk_source,
-        "Risk_Source_Other": risk_source_other,
+        "Severity": severity
     }
 
 def display_real_world_event_fields():
@@ -127,7 +138,6 @@ def display_real_world_event_fields():
         submitter_relationship_other = handle_other_option(submitter_relationship, submitter_relationship, 
                                                              "Please specify your relationship:")
             
-        event_dates = form_entries["event_dates"].to_streamlit()
         event_locations = form_entries["event_locations"].to_streamlit()
     
     with st.container():
@@ -146,7 +156,6 @@ def display_real_world_event_fields():
     return {
         "Submitter Relationship": submitter_relationship,
         "Submitter_Relationship_Other": submitter_relationship_other,
-        "Incident Date(s)": event_dates.isoformat() if event_dates else None,
         "Incident Location(s)": event_locations,
         "Experienced Harm Types": experienced_harm_types,
         "Harm_Types_Other": harm_types_other,
@@ -251,4 +260,27 @@ def display_disclosure_plan():
         "Disclosure Channels": disclosure_channels,
         "Disclosure_Channels_Other": disclosure_channels_other,
         "Embargo Request": embargo_request,
+    }
+
+def display_reproducibility():
+    """Display reproducibility section with context info and file upload"""
+    st.subheader("Reproducibility")
+    st.caption("Information needed to understand and reproduce the flaw")
+    
+    # Context Info
+    context_info = form_entries["context_info"].to_streamlit()
+    
+    # File Upload
+    uploaded_files = st.file_uploader(
+        "Upload Relevant Files", 
+        accept_multiple_files=True,
+        help="Any files that pertain to the reproducibility or documentation of the flaw. Please title them and refer to them in descriptions."
+    )
+    
+    if uploaded_files:
+        st.session_state.uploaded_files = uploaded_files
+        st.write(f"{len(uploaded_files)} file(s) uploaded")
+    
+    return {
+        "Context Info": context_info
     }

@@ -33,7 +33,7 @@ form_entries = {
         name="Session ID(s)",
         title="Session ID(s)",
         input_type=InputType.TEXT,
-        help_text="Many AI chatbots have a “share” feature, that generate a shareable link for a specific conversation. This allows reporter reviewers to more easily reproduce these findings.",
+        help_text="Many AI chatbots have a 'share' feature, that generate a shareable link for a specific conversation. This allows reporter reviewers to more easily reproduce these findings.",
         info_text="Session link or ID for a session that shows the flaw"
     ),
     
@@ -41,18 +41,18 @@ form_entries = {
         name="Flaw Timestamp Start",
         title="When was the flaw first identified?",
         input_type=InputType.DATE,
-        required=False,  # Make it explicitly optional
+        required=False,
         help_text="In cases where systems frequently change, this can help reproduce the context.",
         info_text="Start date of flaw"
     ),
 
-    "flaw_timestamp_end": FormEntry(
-        name="Flaw Timestamp End",
-        title="When was the flaw last observed?",
+    "incident_timestamp_start": FormEntry(
+        name="Incident Timestamp Start",
+        title="When did the incident occur?",
         input_type=InputType.DATE,
-        required=False,  # Make it explicitly optional
-        help_text="Only needed if the flaw persisted or occurred multiple times over a period.",
-        info_text="End date of flaw"
+        required=False,
+        help_text="Enter the date and time when the real-world incident occurred, or your best estimation.",
+        info_text="Start date of incident"
     ),
     
     # Common Fields
@@ -139,15 +139,7 @@ form_entries = {
         help_text="Describe your relationship to the event.",
         info_text="Your relationship to event"
     ),
-    
-    "event_dates": FormEntry(
-        name="Event Date(s)",
-        title="Event Date(s)",
-        input_type=InputType.DATE,
-        help_text="Enter the date and time when the real-world event occurred, or your best estimation.",
-        info_text="Start date / end date of event"
-    ),
-    
+        
     "event_locations": FormEntry(
         name="Event Location(s)",
         title="Event Location(s)",
