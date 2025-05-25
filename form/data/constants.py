@@ -128,6 +128,25 @@ HARM_TYPES = [
     "Other"
 ]
 
+EXPERIENCED_HARM_OPTIONS = [
+    "Physical",
+    "Psychological", 
+    "Reputational",
+    "Economic/property",
+    "Environmental",
+    "Public interest/critical infrastructure",
+    "Fundamental rights",
+    "Child sexual-abuse material (CSAM)",
+    "Other"
+]
+
+MALIGN_ACTOR_IMPACT_OPTIONS = [
+    "Confidentiality breach",
+    "Integrity violation",
+    "Availability disruption", 
+    "Abuse of system"
+]
+
 HARM_SEVERITY_OPTIONS = [
     "Low",
     "Medium",

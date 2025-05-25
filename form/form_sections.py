@@ -68,7 +68,13 @@ def display_common_fields():
     """Display and gather common fields section with improved Risks and Impacts"""
     
     # Flaw Description
-    flaw_description = form_entries["flaw_description"].to_streamlit()
+    report_types = st.session_state.get('report_types', [])
+    is_incident = "Real-World Incidents" in report_types or "Security Incident Report" in report_types
+    
+    if is_incident:
+        flaw_description = form_entries["incident_description"].to_streamlit()
+    else:
+        flaw_description = form_entries["flaw_description"].to_streamlit()
     
     # Policy Violation
     st.markdown("**Policy Violation (how expectations of the system are violated)** <span style='color:red'>*</span>", unsafe_allow_html=True)
@@ -90,18 +96,45 @@ def display_common_fields():
     with col1:
         prevalence = form_entries["prevalence"].to_streamlit()
     with col2:
-        severity = form_entries["severity"].to_streamlit()
+        if is_incident:
+            severity = form_entries["experienced_harm_severity"].to_streamlit()
+        else:
+            severity = form_entries["severity"].to_streamlit()
     
-    # Impacts and Stakeholders - FIXED: Now capturing the values
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown("**Impacts** <span style='color:red'>*</span>", unsafe_allow_html=True)
+        impact_options = []
+        impact_label = "Impacts"
+        impact_help = "Choose impacts that affected stakeholders may experience if the flaw is not addressed."
+        
+        if "Real-World Incidents" in report_types:
+            impact_options = EXPERIENCED_HARM_OPTIONS
+            impact_label = "Experienced Harm Types"
+            impact_help = "Choose the types of harm that were experienced in this incident."
+            
+        elif "Malign Actor" in report_types:
+            impact_options = MALIGN_ACTOR_IMPACT_OPTIONS
+            impact_label = "Malign Actor Impacts"
+            impact_help = "Choose the types of impacts from malign actor activities."
+            
+        else:
+            impact_options = IMPACT_OPTIONS
+        
+        st.markdown(f"**{impact_label}** <span style='color:red'>*</span>", unsafe_allow_html=True)
         impacts = st.multiselect(
-                label="",
-                options=IMPACT_OPTIONS,
-                default=None,
-                help="Choose impacts that affected stakeholders may experience if the flaw is not addressed. (Required)",
-                key="impacts_select"
+            label="",
+            options=impact_options,
+            default=None,
+            help=f"{impact_help} (Required)",
+            key="unified_impacts_select"
+        )
+        
+        # Handle "Other" option if selected
+        impacts_other = ""
+        if impacts and "Other" in impacts:
+            impacts_other = st.text_input(
+                "Please specify other impacts/harms:",
+                key="impacts_other_specify"
             )
             
     with col2:
@@ -114,30 +147,56 @@ def display_common_fields():
                 key="stakeholders_select"
             )
     
+    # Handle CSAM warning if selected
+    if impacts and "Child sexual-abuse material (CSAM)" in impacts:
+        st.error("""
+        ## IMPORTANT: CSAM Reporting Guidelines
+        
+        **Possession and distribution of CSAM and AI-generated CSAM is illegal. Do not include illegal media in this report.**
+        
+        ### What to do instead:
+        1. Report to the **National Center for Missing & Exploited Children (NCMEC)** via their CyberTipline: https://report.cybertip.org/
+        2. If outside the US, report to the **Internet Watch Foundation (IWF)**: https://report.iwf.org.uk/
+        3. Report directly to the AI model developer through their official channels
+        
+        Only share information about the nature of the issue, WITHOUT including illegal content, prompts that could generate illegal content, or specific details that could enable others to recreate the issue.
+        
+        This report will be restricted to appropriate stakeholders on a need-to-know basis.
+        """)
+        
+        # Store CSAM acknowledgment state in session state
+        csam_acknowledge = st.checkbox("I acknowledge these guidelines and confirm this report does NOT contain illegal media", key="csam_acknowledge_unified")
+        st.session_state['csam_acknowledged'] = csam_acknowledge
+    else:
+        # If CSAM is not selected, set acknowledgment to True
+        st.session_state['csam_acknowledged'] = True
+    
     # Risk Source
     col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Risk Source(s)**", unsafe_allow_html=True)
-        risk_sources = st.multiselect(
-                label="",
-                options=RISK_SOURCE_OPTIONS,
-                default=None,
-                help="Choose presumed sources of the flaw.",
-                key="risk_sources_select"
-            )
+    st.markdown("**Risk Source(s)**", unsafe_allow_html=True)
+    risk_sources = st.multiselect(
+            label="",
+            options=RISK_SOURCE_OPTIONS,
+            default=None,
+            help="Choose presumed sources of the flaw.",
+            key="risk_sources_select"
+        )
+    
+    description_key = "Incident Description" if is_incident else "Flaw Description"
     
     return {
-        "Flaw Description": flaw_description,
+        description_key: flaw_description,
         "Policy Violation": policy_violation,
         "Prevalence": prevalence,
         "Severity": severity,
         "Impacts": impacts, 
+        "Impacts_Other": impacts_other,
         "Impacted Stakeholder(s)": impacted_stakeholders,
         "Risk Source(s)": risk_sources
     }
 
 def display_real_world_event_fields():
-    """Display fields for Real-World Events report type"""
+    """Display fields for Real-World Events report type - REMOVED experienced_harm_types"""
     st.subheader("Real-World Incident Details")
     
     with st.container():
@@ -147,66 +206,37 @@ def display_real_world_event_fields():
             
         event_locations = form_entries["event_locations"].to_streamlit()
     
-    with st.container():
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            experienced_harm_types = form_entries["experienced_harm_types"].to_streamlit()
-            harm_types_other = handle_other_option(experienced_harm_types, experienced_harm_types, 
-                                                "Please specify other harm types:")
-        
-        with col2:
-            experienced_harm_severity = form_entries["experienced_harm_severity"].to_streamlit()
-    
     harm_narrative = form_entries["harm_narrative"].to_streamlit()
     
     return {
         "Submitter Relationship": submitter_relationship,
         "Submitter_Relationship_Other": submitter_relationship_other,
         "Incident Location(s)": event_locations,
-        "Experienced Harm Types": experienced_harm_types,
-        "Harm_Types_Other": harm_types_other,
-        "Experienced Harm Severity": experienced_harm_severity,
         "Harm Narrative": harm_narrative
     }
 
 def display_malign_actor_fields():
-    """Display fields for Malign Actor report type"""
+    """Display fields for Malign Actor report type - REMOVED impact field"""
     st.subheader("Malign Actor Details")
     
     col1, col2 = st.columns(2)
     with col1:
         tactic_select = form_entries["tactic_select"].to_streamlit()
         tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
-            
-    with col2:
-        impact = form_entries["impact"].to_streamlit()
-        impact_other = handle_other_option(impact, impact, "Please specify other impacts:")
-    
+        
     return {
         "Tactic Select": tactic_select,
         "Tactic_Select_Other": tactic_select_other,
-        "Impact": impact,
-        "Impact_Other": impact_other
     }
 
 def display_security_incident_fields():
     """Display fields for Security Incident report type"""
     st.subheader("Security Incident Details")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        threat_actor_intent = form_entries["threat_actor_intent"].to_streamlit()
-        threat_actor_intent_other = handle_other_option(threat_actor_intent, threat_actor_intent, 
-                                                     "Please specify other threat actor intent:")
-            
-    with col2:
-        detection = form_entries["detection"].to_streamlit()
-        detection_other = handle_other_option(detection, detection, "Please specify other detection methods:")
+    detection = form_entries["detection"].to_streamlit()
+    detection_other = handle_other_option(detection, detection, "Please specify other detection methods:")
     
     return {
-        "Threat Actor Intent": threat_actor_intent,
-        "Threat_Actor_Intent_Other": threat_actor_intent_other,
         "Detection": detection,
         "Detection_Other": detection_other
     }

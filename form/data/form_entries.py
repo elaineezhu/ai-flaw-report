@@ -76,10 +76,19 @@ form_entries = {
     
     "flaw_description": FormEntry(
         name="Flaw Description",
-        title="Flaw Description (identification, reproduction, how it violates system policies)",
+        title="Flaw Description",
         input_type=InputType.TEXT_AREA,
         help_text="Describe the flaw, how you identified it, how it can be reproduced, and how it violates user expectations of the AI system or AI system policies. Add as much detail as possible to help reproduce and mitigate the flaw.",
-        info_text="Describe the following about the flow: (1) a detailed description of the flaw, (2) what undesirable outputs, effects, or impacts you observed, (3) how specifically to reproduce it (the inputs, actions, and/or links to any code), and (4) for probabilistic flaws, have you shown/verified it happens systematically for many inputs or conditions?"
+        info_text="Describe the following about the flow: \n (1) a detailed description of the flaw, \n (2) what undesirable outputs, effects, or impacts you observed, \n (3) how specifically to reproduce it (the inputs, actions, and/or links to any code), and \n (4) for probabilistic flaws, have you shown/verified it happens systematically for many inputs or conditions?"
+    ),
+
+    "incident_description": FormEntry(
+        name="Incident Description",
+        title="Incident Description",
+        input_type=InputType.TEXT_AREA,
+        required=True,
+        help_text="Describe the incident, how you identified it, how it can be reproduced, and how it violates user expectations of the AI system or AI system policies. Add as much detail as possible to help reproduce and mitigate the incident.",
+        info_text="Describe the following about the incident: \n (1) a detailed description of the incident, \n (2) what undesirable outputs, effects, or impacts you observed, \n (3) how specifically to reproduce it (the inputs, actions, and/or links to any code), and \n (4) for probabilistic incidents, have you shown/verified it happens systematically for many inputs or conditions?"
     ),
     
     "policy_violation": FormEntry(

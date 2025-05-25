@@ -331,10 +331,14 @@ def create_app():
     
     # Initialize csam_acknowledged for cases where it's not needed
     csam_acknowledged = True
+
+    basic_info = form_sections.display_basic_information()
+    common_fields = form_sections.display_common_fields()
+    reproducibility_data = form_sections.display_reproducibility()
+
+    st.session_state.common_data = {**basic_info, **common_fields, **reproducibility_data}
     
     if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None:
-        st.subheader("Selected Report Types")
-        st.write(", ".join(report_types))
         
         st.session_state.report_types = report_types
         
@@ -373,12 +377,6 @@ def create_app():
             st.session_state.form_data.update(disclosure_plan)
             
             st.session_state.form_data["Report Types"] = report_types
-    
-    basic_info = form_sections.display_basic_information()
-    common_fields = form_sections.display_common_fields()
-    reproducibility_data = form_sections.display_reproducibility()
-
-    st.session_state.common_data = {**basic_info, **common_fields, **reproducibility_data}
     
     if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None and report_types:
         st.markdown("---")
