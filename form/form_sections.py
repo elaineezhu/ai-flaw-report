@@ -219,10 +219,8 @@ def display_malign_actor_fields():
     """Display fields for Malign Actor report type - REMOVED impact field"""
     st.subheader("Malign Actor Details")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        tactic_select = form_entries["tactic_select"].to_streamlit()
-        tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
+    tactic_select = form_entries["tactic_select"].to_streamlit()
+    tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
         
     return {
         "Tactic Select": tactic_select,
