@@ -48,23 +48,7 @@ def initialize_session_state():
         
     if 'threat_actor_radio' not in st.session_state:
         st.session_state.threat_actor_radio = None
-
-def display_instructions_expander():
-    """Display instructions as an expander at the top of the form"""
-    with st.expander("‼️ INSTRUCTIONS - CLICK TO EXPAND ‼️", expanded=False):
-        st.markdown("""
-        You are welcome to report any broadly-scoped flaw, vulnerability, or incident relating to an AI system or model. 
-        We encourage reports with demonstrable risks, harms, or systematic concerns related to general-purpose AI systems.
-        
-        **This form will:**
-        * Help you generate a comprehensive, machine-readable report, informed by security best practices.
-        * Elicit details that will make it easier to review and triage.
-        * Provide the option to automatically submit your report to a list of the venues relevant for your flaw.
-        
-        This form creates a form *for you*. Reports are handled in **strict confidence**, and **will not be saved or sent unless you choose to submit them**.
-        
-        Please feel free to contact us at _____ for questions or information.
-        """)
+    
 
 def update_real_world_incident_radio():
     """Update the session state based on radio button selection"""
@@ -312,15 +296,20 @@ def create_app():
     
     
     st.title("AI Flaw & Incident Report Form")
-    
-    st.markdown("""
-    This form allows you to report flaws, vulnerabilities, or incidents related to AI systems. 
-    The information you provide will help identify, categorize, and address potential issues.
-    
-    Please fill out the appropriate sections based on the type of report you're submitting.
-    """)
 
-    display_instructions_expander()
+    st.markdown("""
+    You are welcome to report any broadly-scoped flaw, vulnerability, or incident relating to an AI system or model. 
+    We encourage reports with demonstrable risks, harms, or systematic concerns related to general-purpose AI systems.
+        
+    **This form will:**
+    * Help you generate a comprehensive, machine-readable report, informed by security best practices.
+    * Elicit details that will make it easier to review and triage.
+    * Provide the option to automatically submit your report to a list of the venues relevant for your flaw.
+        
+    This form creates a form *for you*. Reports are handled in **strict confidence**, and **will not be saved or sent unless you choose to submit them**.
+        
+    Please feel free to contact us at _____ for questions or information.
+    """)
     
     display_report_type_classification()
     
