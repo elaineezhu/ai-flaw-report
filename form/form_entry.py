@@ -67,7 +67,7 @@ class FormEntry:
         
         if self.info_text:
             formatted_info = self.info_text.replace('\n', '  \n')
-            ui.markdown(f"*{formatted_info}*", unsafe_allow_html=True)
+            ui.caption(f"*{formatted_info}*", unsafe_allow_html=True)
             
         result = None
         

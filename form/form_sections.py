@@ -67,27 +67,53 @@ def display_basic_information():
 def display_common_fields():
     """Display and gather common fields section with improved Risks and Impacts"""
     
-    # Flaw Description
     report_types = st.session_state.get('report_types', [])
     is_incident = "Real-World Incidents" in report_types or "Security Incident Report" in report_types
     
     if is_incident:
-        flaw_description = form_entries["incident_description"].to_streamlit()
+        st.subheader("Incident Description")
+        st.markdown("Please provide detailed information about the incident in the following sections:")
+        
+        incident_detailed = form_entries["incident_description_detailed"].to_streamlit()
+        incident_outputs = form_entries["incident_description_outputs"].to_streamlit()
+        incident_reproduction = form_entries["incident_description_reproduction"].to_streamlit()
+        incident_systematic = form_entries["incident_description_systematic"].to_streamlit()
+        
+        combined_incident_description = f"""**Detailed Description:**
+{incident_detailed or ''}
+
+**Undesirable Outputs/Effects/Impacts:**
+{incident_outputs or ''}
+
+**Reproduction Steps:**
+{incident_reproduction or ''}
+
+**Systematic Evidence:**
+{incident_systematic or ''}"""
+        
     else:
-        flaw_description = form_entries["flaw_description"].to_streamlit()
-    
-    # Policy Violation
-    st.markdown("**Policy Violation (how expectations of the system are violated)** <span style='color:red'>*</span>", unsafe_allow_html=True)
-    st.caption("Pointer to relevant policies, documentation, etc. showing that the flaw violates them")
-    
+        st.subheader("Flaw Description")
+        st.markdown("Please provide detailed information about the flaw in the following sections:")
+        
+        flaw_detailed = form_entries["flaw_description_detailed"].to_streamlit()
+        flaw_outputs = form_entries["flaw_description_outputs"].to_streamlit()
+        flaw_reproduction = form_entries["flaw_description_reproduction"].to_streamlit()
+        flaw_systematic = form_entries["flaw_description_systematic"].to_streamlit()
+        
+        combined_flaw_description = f"""**Detailed Description:**
+{flaw_detailed or ''}
+
+**Undesirable Outputs/Effects/Impacts:**
+{flaw_outputs or ''}
+
+**Reproduction Steps:**
+{flaw_reproduction or ''}
+
+**Systematic Evidence:**
+{flaw_systematic or ''}"""
     selected_systems = st.session_state.get('systems_selections', [])
     display_policy_links(selected_systems)
-    
-    policy_violation = st.text_area(
-        label="",
-        help="Provide evidence that the identified flaw is undesirable, or has violated expectations of the AI system. Ideally, point to a documented system policy, acceptable usage policy, or terms that indicate this is undesirable. Explain your reasoning. (Required)",
-        key="policy_violation"
-    )
+    policy_violation = form_entries["policy_violation"].to_streamlit()
     
     # Risks and Impacts section
     st.subheader("Risks and Impacts")
@@ -120,16 +146,8 @@ def display_common_fields():
         else:
             impact_options = IMPACT_OPTIONS
         
-        st.markdown(f"**{impact_label}** <span style='color:red'>*</span>", unsafe_allow_html=True)
-        impacts = st.multiselect(
-            label="",
-            options=impact_options,
-            default=None,
-            help=f"{impact_help} (Required)",
-            key="unified_impacts_select"
-        )
+        impacts = form_entries["impacts"].to_streamlit()
         
-        # Handle "Other" option if selected
         impacts_other = ""
         if impacts and "Other" in impacts:
             impacts_other = st.text_input(
@@ -138,14 +156,7 @@ def display_common_fields():
             )
             
     with col2:
-        st.markdown("**Impacted Stakeholder(s)** <span style='color:red'>*</span>", unsafe_allow_html=True)
-        impacted_stakeholders = st.multiselect(
-                label="",
-                options=STAKEHOLDER_OPTIONS,
-                default=None,
-                help="Choose stakeholders who may suffer if the flaw is not addressed. (Required)",
-                key="stakeholders_select"
-            )
+        impacted_stakeholders = form_entries["impacted_stakeholders"].to_streamlit()
     
     # Handle CSAM warning if selected
     if impacts and "Child sexual-abuse material (CSAM)" in impacts:
@@ -173,27 +184,42 @@ def display_common_fields():
     
     # Risk Source
     col1, col2 = st.columns(2)
-    st.markdown("**Risk Source(s)**", unsafe_allow_html=True)
-    risk_sources = st.multiselect(
-            label="",
-            options=RISK_SOURCE_OPTIONS,
-            default=None,
-            help="Choose presumed sources of the flaw.",
-            key="risk_sources_select"
-        )
+    risk_sources = form_entries["risk_source"].to_streamlit()
     
-    description_key = "Incident Description" if is_incident else "Flaw Description"
-    
-    return {
-        description_key: flaw_description,
-        "Policy Violation": policy_violation,
-        "Prevalence": prevalence,
-        "Severity": severity,
-        "Impacts": impacts, 
-        "Impacts_Other": impacts_other,
-        "Impacted Stakeholder(s)": impacted_stakeholders,
-        "Risk Source(s)": risk_sources
-    }
+    if is_incident:
+        description_key = "Incident Description"
+        description_value = combined_incident_description
+        return {
+            description_key: description_value,
+            "Incident Description - Detailed": incident_detailed,
+            "Incident Description - Outputs": incident_outputs,
+            "Incident Description - Reproduction": incident_reproduction,
+            "Incident Description - Systematic": incident_systematic,
+            "Policy Violation": policy_violation,
+            "Prevalence": prevalence,
+            "Severity": severity,
+            "Impacts": impacts, 
+            "Impacts_Other": impacts_other,
+            "Impacted Stakeholder(s)": impacted_stakeholders,
+            "Risk Source(s)": risk_sources
+        }
+    else:
+        description_key = "Flaw Description"
+        description_value = combined_flaw_description
+        return {
+            description_key: description_value,
+            "Flaw Description - Detailed": flaw_detailed,
+            "Flaw Description - Outputs": flaw_outputs,
+            "Flaw Description - Reproduction": flaw_reproduction,
+            "Flaw Description - Systematic": flaw_systematic,
+            "Policy Violation": policy_violation,
+            "Prevalence": prevalence,
+            "Severity": severity,
+            "Impacts": impacts, 
+            "Impacts_Other": impacts_other,
+            "Impacted Stakeholder(s)": impacted_stakeholders,
+            "Risk Source(s)": risk_sources
+        }
 
 def display_real_world_event_fields():
     """Display fields for Real-World Events report type - REMOVED experienced_harm_types"""
@@ -300,7 +326,7 @@ def display_disclosure_plan():
 def display_reproducibility():
     """Display reproducibility section with context info and file upload"""
     st.subheader("Reproducibility")
-    st.caption("Information needed to understand and reproduce the flaw")
+    st.markdown("Information needed to understand and reproduce the flaw")
     
     # Context Info
     context_info = form_entries["context_info"].to_streamlit()
