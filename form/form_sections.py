@@ -242,7 +242,7 @@ def display_real_world_event_fields():
     }
 
 def display_malign_actor_fields():
-    """Display fields for Malign Actor report type - REMOVED impact field"""
+    """Display fields for Malign Actor report type"""
     st.subheader("Malign Actor Details")
     
     tactic_select = form_entries["tactic_select"].to_streamlit()

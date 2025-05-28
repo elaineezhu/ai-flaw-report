@@ -250,7 +250,7 @@ form_entries = {
     # Malign Actor Fields
     "tactic_select": FormEntry(
         name="Tactic Select",
-        title="Tactic Se;ect",
+        title="Tactic Select",
         input_type=InputType.MULTISELECT,
         options=TACTIC_OPTIONS,
         help_text="Pick tactics that bad actors might use to exploit this flaw.",

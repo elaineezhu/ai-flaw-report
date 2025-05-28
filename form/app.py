@@ -328,8 +328,6 @@ def create_app():
     st.session_state.common_data = {**basic_info, **common_fields, **reproducibility_data}
     
     if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None:
-        st.subheader("Selected Report Types")
-        st.write(", ".join(report_types))
         
         st.session_state.report_types = report_types
         
