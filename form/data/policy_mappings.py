@@ -71,8 +71,9 @@ def get_company_policy_links(company: str) -> List[str]:
             "• [OpenAI Terms of Use](https://openai.com/policies/terms-of-use/)"
         ],
         "Anthropic": [
-            "• [Anthropic Usage Policy](https://www.anthropic.com/usage-policy)",
-            "• [Anthropic Terms of Service](https://www.anthropic.com/terms)"
+            "• [Anthropic Usage Policy](https://www.anthropic.com/legal/aup)",
+            "• [Anthropic Bug Bounty](https://hackerone.com/anthropic-vdp?type=team)",
+            "• [Anthropic Disclosure Policy](https://www.anthropic.com/responsible-disclosure-policy)"
         ],
         "Google": [
             "• [Google AI Use Policy](https://policies.google.com/terms/generative-ai/use-policy)",

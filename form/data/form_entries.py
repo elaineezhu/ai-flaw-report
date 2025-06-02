@@ -67,8 +67,8 @@ form_entries = {
     
     # Common Fields
     "context_info": FormEntry(
-        name="Context Information",
-        title="Context Information",
+        name="Reproduction Context",
+        title="Reproduction Steps for Flaw",
         input_type=InputType.TEXT_AREA,
         help_text="Tell us what other tools or devices you used when you saw the flaw.",
         info_text="Other software or hardware info",
@@ -84,33 +84,6 @@ form_entries = {
         info_text="What the flaw is"
     ),
 
-    "flaw_description_outputs": FormEntry(
-        name="Flaw Description - Undesirable Outputs",
-        title="Undesirable Outputs of Flaw",
-        input_type=InputType.TEXT_AREA,
-        required=True,
-        help_text="Describe the wrong or harmful outputs you saw.",
-        info_text="Negative outputs or effects"
-    ),
-
-    "flaw_description_reproduction": FormEntry(
-        name="Flaw Description - Reproduction Steps",
-        title="Reproduction Steps for Flaw",
-        input_type=InputType.TEXT_AREA,
-        required=True,
-        help_text="List steps or code so others can make the AI do the same wrong thing.",
-        info_text="Steps to reproduce flaw"
-    ),
-
-    "flaw_description_systematic": FormEntry(
-        name="Flaw Description - Systematic Evidence",
-        title="Flaw Systematic Evidence",
-        input_type=InputType.TEXT_AREA,
-        required=False,
-        help_text="If this problem happens sometimes, explain how you tested it and what you found.",
-        info_text="Evidence the flaw repeats"
-    ),
-
     # Incident Description Fields
     "incident_description_detailed": FormEntry(
         name="Incident Description - Detailed Description",
@@ -120,38 +93,12 @@ form_entries = {
         help_text="Explain what happened and how the AI was at fault.",
         info_text="What the incident was"
     ),
-
-    "incident_description_outputs": FormEntry(
-        name="Incident Description - Undesirable Outputs",
-        title="Undesirable Outputs of Incident",
-        input_type=InputType.TEXT_AREA,
-        required=True,
-        help_text="Tell us the harm or damage that happened.",
-        info_text="Harmful outputs or effects"
-    ),
-
-    "incident_description_reproduction": FormEntry(
-        name="Incident Description - Reproduction Steps",
-        title="Reproduction Steps for Incident",
-        input_type=InputType.TEXT_AREA,
-        required=True,
-        help_text="Give steps or code so others can recreate the incident.",
-        info_text="Steps to reproduce incident"
-    ),
-
-    "incident_description_systematic": FormEntry(
-        name="Incident Description - Systematic Evidence",
-        title="Incident Systematic Evidence",
-        input_type=InputType.TEXT_AREA,
-        required=False,
-        help_text="If the incident is not guaranteed, explain how often you saw it and how you tested.",
-        info_text="Evidence incident repeats"
-    ),
     
     "policy_violation": FormEntry(
         name="Policy Violation",
         title="Policy Violation",
         input_type=InputType.TEXT_AREA,
+        required=True,
         help_text="Point to any rules or policies the AI broke and explain why it is wrong.",
         info_text="How the flaw breaks rules"
     ),
@@ -225,9 +172,22 @@ form_entries = {
         name="Experienced Harm Types",
         title="Experienced Harm Types",
         input_type=InputType.MULTISELECT,
-        options=HARM_TYPES,
-        help_text="Pick all types of harm people experienced from this incident.",
-        info_text="What kind of harm happened"
+        options=EXPERIENCED_HARM_OPTIONS,
+        help_text="Choose the types of harm that were experienced in this incident.",
+        info_text="What kind of harm happened",
+        required=True,
+        extra_params={"key": "experienced_harm_types"}
+    ),
+    
+    "malign_actor_impacts": FormEntry(
+        name="Malign Actor Impacts",
+        title="Malign Actor Impacts",
+        input_type=InputType.MULTISELECT,
+        options=MALIGN_ACTOR_IMPACT_OPTIONS,
+        help_text="Choose the types of impacts from malign actor activities.",
+        info_text="Possible attacker impacts",
+        required=True,
+        extra_params={"key": "malign_actor_impacts"}
     ),
 
     "experienced_harm_severity": FormEntry(

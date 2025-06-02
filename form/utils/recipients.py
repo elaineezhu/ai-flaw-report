@@ -56,38 +56,31 @@ class ReportRecipient:
 def determine_report_recipients(form_data):
     """Determine appropriate recipients for the report based on form data"""
     recipients = []
+    seen_recipients = set()
     
     systems = form_data.get("Implicated Systems", form_data.get("Systems", []))
     
     for system in systems:
+        recipient_info = None
+        
         if "OpenAI" in system or "GPT" in system:
-            recipients.append(ReportRecipient(
-                name="OpenAI",
-                recipient_type="Developer",
-                contact="https://openai.com/security/vulnerability-reporting",
-                reason="This AI developer was selected as an affected system"
-            ))
+            recipient_info = ("OpenAI", "Developer", "https://openai.com/security/vulnerability-reporting")
         elif "Anthropic" in system or "Claude" in system:
-            recipients.append(ReportRecipient(
-                name="Anthropic", 
-                recipient_type="Developer",
-                contact="https://www.anthropic.com/security",
-                reason="This AI developer was selected as an affected system"
-            ))
+            recipient_info = ("Anthropic", "Developer", "https://www.anthropic.com/security")
         elif "Google" in system or "Gemini" in system or "Bard" in system:
-            recipients.append(ReportRecipient(
-                name="Google", 
-                recipient_type="Developer",
-                contact="https://bughunters.google.com/",
-                reason="This AI developer was selected as an affected system"
-            ))
+            recipient_info = ("Google", "Developer", "https://bughunters.google.com/")
         elif "Meta" in system or "Llama" in system:
+            recipient_info = ("Meta", "Developer", "https://www.facebook.com/whitehat")
+        
+        if recipient_info and recipient_info not in seen_recipients:
+            name, recipient_type, contact = recipient_info
             recipients.append(ReportRecipient(
-                name="Meta", 
-                recipient_type="Developer",
-                contact="https://www.facebook.com/whitehat",
+                name=name,
+                recipient_type=recipient_type,
+                contact=contact,
                 reason="This AI developer was selected as an affected system"
             ))
+            seen_recipients.add(recipient_info)
     
     if "Child sexual-abuse material (CSAM)" in form_data.get("Experienced Harm Types", []):
         recipients.append(ReportRecipient(
@@ -177,8 +170,10 @@ def display_submission_table(recipients):
                 
             st.write(f"**{plural_type}:**")
             
-            for recipient in recipients_list:
-                checkbox_key = f"submit_to_{recipient.name.replace(' ', '_').replace('(', '').replace(')', '')}"
+            for i, recipient in enumerate(recipients_list):
+                # Create unique key by including index and recipient type
+                checkbox_key = f"submit_to_{recipient.name.replace(' ', '_').replace('(', '').replace(')', '')}_{recipient_type}_{i}"
+                
                 if checkbox_key not in st.session_state:
                     st.session_state[checkbox_key] = True
                 

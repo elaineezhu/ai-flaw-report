@@ -98,14 +98,14 @@ def handle_submission():
     
     form_data.update(st.session_state.common_data)
     
+    if check_csam_in_impacts(form_data):
+        st.error("⚠️ **Submission blocked:** CSAM-related reports cannot be submitted through this form.")
+        return
+    
     if "Report ID" not in form_data and "report_id" in st.session_state:
         form_data["Report ID"] = st.session_state.report_id
     
     form_data["Submission Timestamp"] = datetime.now().isoformat()
-    
-    # DEBUGGING INFO (Will delete later)
-    # st.sidebar.info(f"Submitting form with Report ID: {form_data.get('Report ID')}")
-    # st.sidebar.info(f"Report Types: {form_data.get('Report Types', [])}")
     
     if st.session_state.uploaded_files:
         file_names = [file.name for file in st.session_state.uploaded_files]
@@ -173,10 +173,20 @@ def show_report_submission_results(form_data):
     with col2:
         if len(recipients) > 0 and st.button("Submit to Selected Recipients", type="primary", use_container_width=True):
             selected_recipients = []
+            
+            grouped_recipients = {}
             for recipient in recipients:
-                safe_key = f"submit_to_{recipient.name.replace(' ', '_').replace('(', '').replace(')', '')}"
-                if st.session_state.get(safe_key, True):
-                    selected_recipients.append(recipient)
+                recipient_type = recipient.recipient_type
+                if recipient_type not in grouped_recipients:
+                    grouped_recipients[recipient_type] = []
+                grouped_recipients[recipient_type].append(recipient)
+            
+            # Check which recipients are selected using the new key format
+            for recipient_type, recipients_list in grouped_recipients.items():
+                for i, recipient in enumerate(recipients_list):
+                    checkbox_key = f"submit_to_{recipient.name.replace(' ', '_').replace('(', '').replace(')', '')}_{recipient_type}_{i}"
+                    if st.session_state.get(checkbox_key, True):
+                        selected_recipients.append(recipient)
             
             db_selected = st.session_state.get("submit_to_database", True)
             
@@ -254,6 +264,20 @@ def display_report_type_classification():
     )
     threat_actor_field.to_streamlit()
 
+def check_csam_in_impacts(form_data):
+    """Check if CSAM is selected in any impact-related fields"""
+    impacts = form_data.get("Impacts", [])
+    experienced_harm_types = form_data.get("Experienced Harm Types", [])
+    
+    if impacts and "Child sexual-abuse material (CSAM)" in impacts:
+        return True
+    if experienced_harm_types and "Child sexual-abuse material (CSAM)" in experienced_harm_types:
+        return True
+    
+    return False
+
+# Replace this section in create_app():
+
 def create_app():
     """Main function to create the Streamlit app with database integration"""
     st.set_page_config(page_title="AI Flaw Report Form", layout="wide")
@@ -261,26 +285,20 @@ def create_app():
     initialize_session_state()
     
     storage_provider = get_storage_provider()
-    
-    # Store the provider in session state so it persists between reruns
     st.session_state['storage_provider'] = storage_provider
     
     if st.session_state.get('_needs_complete_reset', False):
         new_report_id = st.session_state.get('_new_report_id', str(uuid.uuid4()))
-        
         current_provider = st.session_state.get('storage_provider')
         
         for key in list(st.session_state.keys()):
             del st.session_state[key]
             
         st.session_state.report_id = new_report_id
-        
         st.session_state['storage_provider'] = current_provider
-        
         initialize_session_state()
     else:
         initialize_session_state()
-    
     
     st.title("AI Flaw & Incident Report Form")
 
@@ -300,14 +318,14 @@ def create_app():
     
     display_report_type_classification()
     
+    # Calculate and IMMEDIATELY store report_types in session state
     report_types = determine_report_types(
         st.session_state.involves_real_world_incident, 
         st.session_state.involves_threat_actor
     )
+    st.session_state.report_types = report_types  # ← ADD THIS LINE HERE!
     
-    # Initialize csam_acknowledged for cases where it's not needed
-    csam_acknowledged = True
-
+    # Now the common fields can access the correct report_types
     basic_info = form_sections.display_basic_information()
     common_fields = form_sections.display_common_fields()
     reproducibility_data = form_sections.display_reproducibility()
@@ -315,8 +333,6 @@ def create_app():
     st.session_state.common_data = {**basic_info, **common_fields, **reproducibility_data}
     
     if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None:
-        
-        st.session_state.report_types = report_types
         
         if report_types:
             st.session_state.form_data = {}
@@ -352,33 +368,35 @@ def create_app():
             
             st.session_state.form_data["Report Types"] = report_types
 
+    # Rest of your submission logic stays the same...
     if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None and report_types:
-        csam_acknowledged = st.session_state.get('csam_acknowledged', True)
-        
         if not st.session_state.submission_status:
             st.markdown("---")
             st.markdown(" ")
             
+            csam_selected = st.session_state.get('csam_selected', False)
+            
             col1, col2, col3 = st.columns([1, 2, 1])
             with col2:
-                submit_button = st.button("Submit Report", type="primary", use_container_width=True, disabled=not csam_acknowledged)
-                if not csam_acknowledged:
-                    st.warning("You must acknowledge the CSAM reporting guidelines before submitting.")
+                submit_button = st.button(
+                    "Submit Report", 
+                    type="primary", 
+                    use_container_width=True, 
+                    disabled=csam_selected
+                )
                 
-            if submit_button:
+                if csam_selected:
+                    st.error("⚠️ **Submission blocked:** Reports involving CSAM cannot be submitted through this form. Please use the appropriate reporting channels listed above.")
+                
+            if submit_button and not csam_selected:
                 required_fields = []
                 
-                # Determine required field names based on report type
-                report_types = st.session_state.get('report_types', [])
                 is_incident = "Real-World Incidents" in report_types or "Security Incident Report" in report_types
                 description_field = "Incident Description" if is_incident else "Flaw Description"
                 
                 required_fields.extend([description_field, "Policy Violation", "Impacts", "Impacted Stakeholder(s)"])
-
-                # Add disclosure plan required field
                 required_fields.append("Disclosure Intent")
                 
-                # Combine all data for validation
                 all_data = {**st.session_state.common_data, **st.session_state.form_data}
                 
                 missing_fields = validate_required_fields(all_data, required_fields)
@@ -393,6 +411,5 @@ def create_app():
                     
                     handle_submission()
 
-    # Show submission results if the form has been submitted
     if st.session_state.submission_status:
         show_report_submission_results(st.session_state.form_data)

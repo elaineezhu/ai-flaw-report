@@ -71,42 +71,26 @@ def display_common_fields():
         st.markdown("Please provide detailed information about the incident in the following sections:")
         
         incident_detailed = form_entries["incident_description_detailed"].to_streamlit()
-        incident_outputs = form_entries["incident_description_outputs"].to_streamlit()
-        incident_reproduction = form_entries["incident_description_reproduction"].to_streamlit()
-        incident_systematic = form_entries["incident_description_systematic"].to_streamlit()
         
         combined_incident_description = f"""**Detailed Description:**
-{incident_detailed or ''}
-
-**Undesirable Outputs/Effects/Impacts:**
-{incident_outputs or ''}
-
-**Reproduction Steps:**
-{incident_reproduction or ''}
-
-**Systematic Evidence:**
-{incident_systematic or ''}"""
+        {incident_detailed or ''}
+        """
         
     else:
         st.subheader("Flaw Description")
-        st.markdown("Please provide detailed information about the flaw in the following sections:")
+        st.markdown("""
+        Describe the following about the flaw:
+        * **(1)** a detailed description of the flaw,
+        * **(2)** what undesirable outputs, effects, or impacts you observed,
+        * **(3)** how specifically to reproduce it (the inputs, actions, and/or links to any code), and
+        * **(4)** for probabilistic flaws, have you shown/verified it happens systematically for many inputs or conditions?
+        """)
         
         flaw_detailed = form_entries["flaw_description_detailed"].to_streamlit()
-        flaw_outputs = form_entries["flaw_description_outputs"].to_streamlit()
-        flaw_reproduction = form_entries["flaw_description_reproduction"].to_streamlit()
-        flaw_systematic = form_entries["flaw_description_systematic"].to_streamlit()
         
         combined_flaw_description = f"""**Detailed Description:**
-{flaw_detailed or ''}
-
-**Undesirable Outputs/Effects/Impacts:**
-{flaw_outputs or ''}
-
-**Reproduction Steps:**
-{flaw_reproduction or ''}
-
-**Systematic Evidence:**
-{flaw_systematic or ''}"""
+        {flaw_detailed or ''}
+        """
     selected_systems = st.session_state.get('systems_selections', [])
     display_policy_links(selected_systems)
     policy_violation = form_entries["policy_violation"].to_streamlit()
@@ -125,24 +109,15 @@ def display_common_fields():
     
     col1, col2 = st.columns(2)
     with col1:
-        impact_options = []
-        impact_label = "Impacts"
-        impact_help = "Choose impacts that affected stakeholders may experience if the flaw is not addressed."
-        
+        # Conditionally display the appropriate impacts form entry
         if "Real-World Incidents" in report_types:
-            impact_options = EXPERIENCED_HARM_OPTIONS
-            impact_label = "Experienced Harm Types"
-            impact_help = "Choose the types of harm that were experienced in this incident."
+            impacts = form_entries["experienced_harm_types"].to_streamlit()
             
         elif "Malign Actor" in report_types:
-            impact_options = MALIGN_ACTOR_IMPACT_OPTIONS
-            impact_label = "Malign Actor Impacts"
-            impact_help = "Choose the types of impacts from malign actor activities."
+            impacts = form_entries["malign_actor_impacts"].to_streamlit()
             
         else:
-            impact_options = IMPACT_OPTIONS
-        
-        impacts = form_entries["impacts"].to_streamlit()
+            impacts = form_entries["impacts"].to_streamlit()
         
         impacts_other = ""
         if impacts and "Other" in impacts:
@@ -154,29 +129,28 @@ def display_common_fields():
     with col2:
         impacted_stakeholders = form_entries["impacted_stakeholders"].to_streamlit()
     
-    # Handle CSAM warning if selected
-    if impacts and "Child sexual-abuse material (CSAM)" in impacts:
+    # Check if CSAM is selected and handle accordingly
+    csam_selected = impacts and "Child sexual-abuse material (CSAM)" in impacts
+    
+    if csam_selected:
         st.error("""
         ## IMPORTANT: CSAM Reporting Guidelines
         
-        **Possession and distribution of CSAM and AI-generated CSAM is illegal. Do not include illegal media in this report.**
-        
+        **Reports involving CSAM cannot be submitted through this form. Please use the appropriate channels below.**
+                
         ### What to do instead:
         1. Report to the **National Center for Missing & Exploited Children (NCMEC)** via their CyberTipline: https://report.cybertip.org/
         2. If outside the US, report to the **Internet Watch Foundation (IWF)**: https://report.iwf.org.uk/
         3. Report directly to the AI model developer through their official channels
         
-        Only share information about the nature of the issue, WITHOUT including illegal content, prompts that could generate illegal content, or specific details that could enable others to recreate the issue.
-        
-        This report will be restricted to appropriate stakeholders on a need-to-know basis.
+        **To continue with this form, please deselect CSAM from the impacts list.**
         """)
         
-        # Store CSAM acknowledgment state in session state
-        csam_acknowledge = st.checkbox("I acknowledge these guidelines and confirm this report does NOT contain illegal media", key="csam_acknowledge_unified")
-        st.session_state['csam_acknowledged'] = csam_acknowledge
+        # Set CSAM flag to prevent submission
+        st.session_state['csam_selected'] = True
     else:
-        # If CSAM is not selected, set acknowledgment to True
-        st.session_state['csam_acknowledged'] = True
+        # Clear CSAM flag if not selected
+        st.session_state['csam_selected'] = False
     
     # Risk Source
     col1, col2 = st.columns(2)
@@ -188,9 +162,6 @@ def display_common_fields():
         return {
             description_key: description_value,
             "Incident Description - Detailed": incident_detailed,
-            "Incident Description - Outputs": incident_outputs,
-            "Incident Description - Reproduction": incident_reproduction,
-            "Incident Description - Systematic": incident_systematic,
             "Policy Violation": policy_violation,
             "Prevalence": prevalence,
             "Severity": severity,
@@ -205,9 +176,6 @@ def display_common_fields():
         return {
             description_key: description_value,
             "Flaw Description - Detailed": flaw_detailed,
-            "Flaw Description - Outputs": flaw_outputs,
-            "Flaw Description - Reproduction": flaw_reproduction,
-            "Flaw Description - Systematic": flaw_systematic,
             "Policy Violation": policy_violation,
             "Prevalence": prevalence,
             "Severity": severity,
@@ -216,6 +184,7 @@ def display_common_fields():
             "Impacted Stakeholder(s)": impacted_stakeholders,
             "Risk Source(s)": risk_sources
         }
+
 
 def display_real_world_event_fields():
     """Display fields for Real-World Events report type - REMOVED experienced_harm_types"""
@@ -259,16 +228,6 @@ def display_security_incident_fields():
     return {
         "Detection": detection,
         "Detection_Other": detection_other
-    }
-
-def display_vulnerability_fields():
-    """Display fields for Vulnerability report type"""
-    st.subheader("Vulnerability Details")
-    
-    proof_of_concept = form_entries["proof_of_concept"].to_streamlit()
-    
-    return {
-        "Proof-of-Concept Exploit": proof_of_concept
     }
 
 def display_hazard_fields():
@@ -320,18 +279,21 @@ def display_disclosure_plan():
     }
 
 def display_reproducibility():
-    """Display reproducibility section with context info and file upload"""
+    """Display reproducibility section with context info, proof of concept, and file upload"""
     st.subheader("Reproducibility")
     st.markdown("Information needed to understand and reproduce the flaw")
     
     # Context Info
     context_info = form_entries["context_info"].to_streamlit()
     
+    # Proof-of-Concept (moved from vulnerability section)
+    proof_of_concept = form_entries["proof_of_concept"].to_streamlit()
+    
     # File Upload
     uploaded_files = st.file_uploader(
         "Upload Relevant Files", 
         accept_multiple_files=True,
-        help="Any files that pertain to the reproducibility or documentation of the flaw. Please title them and refer to them in descriptions."
+        help="Please upload any files with instructions for how to exploit the flaw or evidence of the flaw being exploited (e.g., code and documentation). Please title them and refer to them in descriptions."
     )
     
     if uploaded_files:
@@ -339,5 +301,7 @@ def display_reproducibility():
         st.write(f"{len(uploaded_files)} file(s) uploaded")
     
     return {
-        "Context Info": context_info
+        "Context Info": context_info,
+        "Proof-of-Concept Exploit": proof_of_concept
     }
+
