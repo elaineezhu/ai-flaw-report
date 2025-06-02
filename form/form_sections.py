@@ -11,11 +11,7 @@ def display_basic_information():
     """Display and gather basic information section using imported FormEntry objects"""
     st.subheader("Basic Information")
     
-    with st.sidebar.expander("Models API Settings", expanded=False):
-        use_api = st.checkbox("Use Hugging Face API for models", value=True)
-        if st.button("Clear Cache"):
-            st.cache_data.clear()
-            st.success("Cache cleared!")
+    use_api = True
     
     with st.container():
         col1, col2 = st.columns(2)

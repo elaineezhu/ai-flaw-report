@@ -104,8 +104,8 @@ def handle_submission():
     form_data["Submission Timestamp"] = datetime.now().isoformat()
     
     # DEBUGGING INFO (Will delete later)
-    st.sidebar.info(f"Submitting form with Report ID: {form_data.get('Report ID')}")
-    st.sidebar.info(f"Report Types: {form_data.get('Report Types', [])}")
+    # st.sidebar.info(f"Submitting form with Report ID: {form_data.get('Report ID')}")
+    # st.sidebar.info(f"Report Types: {form_data.get('Report Types', [])}")
     
     if st.session_state.uploaded_files:
         file_names = [file.name for file in st.session_state.uploaded_files]
@@ -127,12 +127,8 @@ def show_report_submission_results(form_data):
     
     # Make sure the provider is initialized before saving
     if not hasattr(storage_provider, 'initialized') or not storage_provider.initialized:
-        st.sidebar.warning("Storage provider not initialized. Re-initializing...")
+        #st.sidebar.warning("Storage provider not initialized. Re-initializing...")
         initialized = storage_provider.initialize()
-        if initialized:
-            st.sidebar.success("Successfully re-initialized storage provider.")
-        else:
-            st.sidebar.error("Failed to initialize storage provider. Using local fallback.")
     
     report_path, machine_readable_output = storage_provider.save_report(form_data)
     
@@ -265,15 +261,6 @@ def create_app():
     initialize_session_state()
     
     storage_provider = get_storage_provider()
-    initialized = storage_provider.initialize()
-    
-    if initialized:
-        st.sidebar.success(f"Connected to storage provider: {storage_provider.__class__.__name__}")
-    else:
-        st.sidebar.warning("Failed to initialize storage provider. Using local storage fallback.")
-        from storage.storage_interface import LocalStorageProvider
-        storage_provider = LocalStorageProvider()
-        storage_provider.initialize()
     
     # Store the provider in session state so it persists between reruns
     st.session_state['storage_provider'] = storage_provider
@@ -306,7 +293,7 @@ def create_app():
     * Elicit details that will make it easier to review and triage.
     * Provide the option to automatically submit your report to a list of the venues relevant for your flaw.
         
-    This form creates a form *for you*. Reports are handled in **strict confidence**, and **will not be saved or sent unless you choose to submit them**.
+    This form creates a report *for you*. Reports are handled in **strict confidence**, and **will not be saved or sent unless you choose to submit them**.
         
     Please feel free to contact us at _____ for questions or information.
     """)
@@ -368,51 +355,44 @@ def create_app():
     if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None and report_types:
         csam_acknowledged = st.session_state.get('csam_acknowledged', True)
         
-        st.markdown("---")
-        st.markdown(" ")
-        
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            submit_button = st.button("Submit Report", type="primary", use_container_width=True, disabled=not csam_acknowledged)
-            if not csam_acknowledged:
-                st.warning("You must acknowledge the CSAM reporting guidelines before submitting.")
+        if not st.session_state.submission_status:
+            st.markdown("---")
+            st.markdown(" ")
             
-        if submit_button:
-            required_fields = []
-            
-            # Determine required field names based on report type
-            report_types = st.session_state.get('report_types', [])
-            is_incident = "Real-World Incidents" in report_types or "Security Incident Report" in report_types
-            description_field = "Incident Description" if is_incident else "Flaw Description"
-            
-            required_fields.extend([description_field, "Policy Violation", "Impacts", "Impacted Stakeholder(s)"])
-
-            # Add disclosure plan required field
-            required_fields.append("Disclosure Intent")
-            
-            # Combine all data for validation
-            all_data = {**st.session_state.common_data, **st.session_state.form_data}
-            
-            missing_fields = validate_required_fields(all_data, required_fields)
-            
-            if missing_fields:
-                st.error(f"Please fill out the following required fields: {', '.join(missing_fields)}")
-            else:
-                if st.session_state.uploaded_files:
-                    st.sidebar.info(f"Processing {len(st.session_state.uploaded_files)} uploaded files")
-                    file_paths = save_uploaded_files(st.session_state.uploaded_files, report_id=all_data.get("Report ID"))
-                    st.session_state.form_data["Uploaded Files"] = list(file_paths.keys())
-                    st.session_state.form_data["Uploaded File Paths"] = list(file_paths.values())
-                    
-                    # DEBUGGING INFO (Will delete later)
-                    st.sidebar.success(f"Saved {len(file_paths)} files locally")
-                    st.sidebar.info(f"Uploaded files: {st.session_state.form_data['Uploaded Files']}")
-                    st.sidebar.info(f"File paths: {st.session_state.form_data['Uploaded File Paths']}")
-                else:
-                    st.sidebar.info("No files uploaded")
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                submit_button = st.button("Submit Report", type="primary", use_container_width=True, disabled=not csam_acknowledged)
+                if not csam_acknowledged:
+                    st.warning("You must acknowledge the CSAM reporting guidelines before submitting.")
                 
-                handle_submission()
-    
+            if submit_button:
+                required_fields = []
+                
+                # Determine required field names based on report type
+                report_types = st.session_state.get('report_types', [])
+                is_incident = "Real-World Incidents" in report_types or "Security Incident Report" in report_types
+                description_field = "Incident Description" if is_incident else "Flaw Description"
+                
+                required_fields.extend([description_field, "Policy Violation", "Impacts", "Impacted Stakeholder(s)"])
+
+                # Add disclosure plan required field
+                required_fields.append("Disclosure Intent")
+                
+                # Combine all data for validation
+                all_data = {**st.session_state.common_data, **st.session_state.form_data}
+                
+                missing_fields = validate_required_fields(all_data, required_fields)
+                
+                if missing_fields:
+                    st.error(f"Please fill out the following required fields: {', '.join(missing_fields)}")
+                else:
+                    if st.session_state.uploaded_files:
+                        file_paths = save_uploaded_files(st.session_state.uploaded_files, report_id=all_data.get("Report ID"))
+                        st.session_state.form_data["Uploaded Files"] = list(file_paths.keys())
+                        st.session_state.form_data["Uploaded File Paths"] = list(file_paths.values())
+                    
+                    handle_submission()
+
     # Show submission results if the form has been submitted
     if st.session_state.submission_status:
         show_report_submission_results(st.session_state.form_data)

@@ -66,11 +66,11 @@ class LocalStorageProvider(StorageProvider):
         """Initialize local storage using a temporary directory"""
         try:
             os.makedirs(self.report_dir, exist_ok=True)
-            st.sidebar.success(f"Using local file storage in temporary directory: {self.report_dir}")
+            # st.sidebar.success(f"Using local file storage in temporary directory: {self.report_dir}")
             self.initialized = True
             return True
         except Exception as e:
-            st.sidebar.error(f"Error initializing local storage: {str(e)}")
+            # st.sidebar.error(f"Error initializing local storage: {str(e)}")
             return False
     
     def save_report(self, form_data):
@@ -90,16 +90,16 @@ class LocalStorageProvider(StorageProvider):
                     "timestamp": datetime.now().isoformat()
                 }, f, indent=4)
             
-            st.sidebar.success(f"Report saved to: {file_path}")
+            # st.sidebar.success(f"Report saved to: {file_path}")
             return file_path, machine_readable_output
         except Exception as e:
-            st.sidebar.error(f"Error saving report: {str(e)}")
+            # st.sidebar.error(f"Error saving report: {str(e)}")
             st.session_state[f"report_{report_id}"] = {
                 "form_data": form_data,
                 "machine_readable": machine_readable_output,
                 "timestamp": datetime.now().isoformat()
             }
-            st.sidebar.info(f"Fallback: Report stored in session state")
+            # st.sidebar.info(f"Fallback: Report stored in session state")
             return f"session_state:report_{report_id}", machine_readable_output
     
     def get_report(self, report_id):
@@ -109,22 +109,22 @@ class LocalStorageProvider(StorageProvider):
             
         session_key = f"report_{report_id}"
         if session_key in st.session_state:
-            st.sidebar.info(f"Retrieved report {report_id} from session state")
+            # st.sidebar.info(f"Retrieved report {report_id} from session state")
             return st.session_state[session_key]
         
         file_path = os.path.join(self.report_dir, f"report_{report_id}.json")
         if not os.path.exists(file_path):
-            st.sidebar.warning(f"Report {report_id} not found")
+            # st.sidebar.warning(f"Report {report_id} not found")
             return None
         
         try:
             with open(file_path, "r") as f:
                 data = json.load(f)
             
-            st.sidebar.success(f"Retrieved report from: {file_path}")
+            # st.sidebar.success(f"Retrieved report from: {file_path}")
             return data
         except Exception as e:
-            st.sidebar.error(f"Error reading report file: {str(e)}")
+            # st.sidebar.error(f"Error reading report file: {str(e)}")
             return None
     
     def update_report(self, report_id, form_data):
@@ -140,7 +140,6 @@ class LocalStorageProvider(StorageProvider):
         reports = []
         
         if os.path.exists(self.report_dir):
-            try:
                 report_files = [f for f in os.listdir(self.report_dir) if f.endswith(".json")]
                 
                 # Sort by most recent first
@@ -152,7 +151,6 @@ class LocalStorageProvider(StorageProvider):
                 report_files = report_files[:limit]
                 
                 for file_name in report_files:
-                    try:
                         with open(os.path.join(self.report_dir, file_name), "r") as f:
                             data = json.load(f)
                         
@@ -168,14 +166,9 @@ class LocalStorageProvider(StorageProvider):
                             "reporter_id": form_data.get("Reporter ID", "Unknown"),
                             "submission_timestamp": data.get("timestamp", "Unknown")
                         })
-                    except Exception as e:
-                        st.sidebar.error(f"Error reading report file {file_name}: {e}")
-            except Exception as e:
-                st.sidebar.error(f"Error listing reports from directory: {str(e)}")
         
         for key in st.session_state:
             if key.startswith("report_"):
-                try:
                     report_id = key.replace("report_", "")
                     if any(r["report_id"] == report_id for r in reports):
                         continue 
@@ -190,8 +183,6 @@ class LocalStorageProvider(StorageProvider):
                         "reporter_id": form_data.get("Reporter ID", "Unknown"),
                         "submission_timestamp": data.get("timestamp", "Unknown")
                     })
-                except Exception as e:
-                    st.sidebar.error(f"Error processing session state report {key}: {str(e)}")
         
         return reports[:limit]
 

@@ -31,7 +31,7 @@ form_entries = {
     
     "session_id": FormEntry(
         name="Session ID(s)",
-        title="Session ID(s)",
+        title="Session Link(s)/Session ID(s)",
         input_type=InputType.TEXT,
         help_text="Paste the chat link or ID here so others can see the same interaction.",
         info_text="Link or ID of the chat session"
@@ -162,7 +162,7 @@ form_entries = {
         input_type=InputType.SELECT_SLIDER,
         options=SEVERITY_OPTIONS,
         help_text="Pick how bad the harm would be if someone hits this flaw.",
-        info_text="How serious the flaw is"
+        info_text="If the flaw is encountered, how negative will the impact be for any stakeholder (user, system developer, or other)?"
     ),
         
     "prevalence": FormEntry(
@@ -170,8 +170,8 @@ form_entries = {
         title="Prevalence",
         input_type=InputType.SELECT_SLIDER,
         options=PREVALENCE_OPTIONS,
-        help_text="Pick how common you think this problem is for other users.",
-        info_text="How common the flaw is"
+        help_text="• Rare: Unlikely for other real-world users to identify or have encountered this. \n • Occasional: Other real-world users may occasionally encounter this. \n • Common: Other real-world users will commonly encounter this. \n • Widespread: Other real-world users have likely widely encountered this.",
+        info_text="How likely is the flaw to be encountered?"
     ),
     
     "impacts": FormEntry(
