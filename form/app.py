@@ -352,11 +352,6 @@ def create_app():
                 security_incident_fields = form_sections.display_security_incident_fields()
                 st.session_state.form_data.update(security_incident_fields)
             
-            # Vulnerability Report fields
-            if "Vulnerability Report" in report_types:
-                vulnerability_fields = form_sections.display_vulnerability_fields()
-                st.session_state.form_data.update(vulnerability_fields)
-            
             # Hazard Report fields
             if "Hazard Report" in report_types:
                 hazard_fields = form_sections.display_hazard_fields()
@@ -368,7 +363,6 @@ def create_app():
             
             st.session_state.form_data["Report Types"] = report_types
 
-    # Rest of your submission logic stays the same...
     if st.session_state.involves_real_world_incident is not None and st.session_state.involves_threat_actor is not None and report_types:
         if not st.session_state.submission_status:
             st.markdown("---")
