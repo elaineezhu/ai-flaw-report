@@ -90,7 +90,8 @@ IMPACT_OPTIONS = [
     "Physical",
     "Privacy",
     "Civil rights",
-    "Environmental"
+    "Environmental",
+    "Other"
 ]
 
 STAKEHOLDER_OPTIONS = [
@@ -99,7 +100,8 @@ STAKEHOLDER_OPTIONS = [
     "Administrators",
     "General Public",
     "Vulnerable populations",
-    "Organizations"
+    "Organizations",
+    "Other"
 ]
 
 RISK_SOURCE_OPTIONS = [
@@ -107,7 +109,8 @@ RISK_SOURCE_OPTIONS = [
     "Implementation error",
     "Data bias",
     "Deployment issue",
-    "Integration problem"
+    "Integration problem",
+    "Other"
 ]
 
 BOUNTY_OPTIONS = [

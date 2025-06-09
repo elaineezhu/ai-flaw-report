@@ -128,6 +128,14 @@ def display_common_fields():
             
     with col2:
         impacted_stakeholders = form_entries["impacted_stakeholders"].to_streamlit()
+
+        impacted_stakeholders_other = ""
+        if impacted_stakeholders and "Other" in impacted_stakeholders:
+            impacted_stakeholders_other = st.text_input(
+                "Please specify other impacted stakeholders:",
+                key="impacted_stakeholders_other_specify"
+            )
+    
     
     # Check if CSAM is selected and handle accordingly
     csam_selected = impacts and "Child sexual-abuse material (CSAM)" in impacts
@@ -187,7 +195,7 @@ def display_common_fields():
 
 
 def display_real_world_event_fields():
-    """Display fields for Real-World Events report type - REMOVED experienced_harm_types"""
+    """Display fields for Real-World Events report type"""
     st.subheader("Real-World Incident Details")
     
     with st.container():
@@ -290,10 +298,13 @@ def display_reproducibility():
     proof_of_concept = form_entries["proof_of_concept"].to_streamlit()
     
     # File Upload
+    st.markdown("**Upload Relevant Files**")
+    st.caption("Please upload any files that pertain to the reproduction of the flaw being reported (eg. code, screenshots, documentation). Please title them and explain their contents in your written descriptions.")
+
     uploaded_files = st.file_uploader(
-        "Upload Relevant Files", 
+        "", 
         accept_multiple_files=True,
-        help="Please upload any files with instructions for how to exploit the flaw or evidence of the flaw being exploited (e.g., code and documentation). Please title them and refer to them in descriptions."
+        # help="Please upload any files with instructions for how to exploit the flaw or evidence of the flaw being exploited (e.g., code and documentation). Please title them and refer to them in descriptions."
     )
     
     if uploaded_files:

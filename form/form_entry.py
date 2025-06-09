@@ -57,16 +57,17 @@ class FormEntry:
         # Use the container if provided, otherwise use st directly
         ui = container if container else st
         
-        help_text = self.help_text
-        if self.required:
-            help_text = f"{help_text} (Required)" if help_text else "Required field"
+        #help_text = self.help_text
+        #if self.required:
+        #    help_text = f"{help_text} (Required)" if help_text else "Required field"
         
         # Use the display title with asterisk for required fields
         display_title = self._get_display_title()
         ui.markdown(f"**{display_title}**", unsafe_allow_html=True)
         
-        if self.info_text:
-            formatted_info = self.info_text.replace('\n', '  \n')
+        help_text = self.help_text
+        if self.help_text:
+            formatted_info = self.help_text.replace('\n', '  \n')
             ui.caption(f"*{formatted_info}*", unsafe_allow_html=True)
             
         result = None
@@ -75,7 +76,7 @@ class FormEntry:
             result = ui.text_input(
                 label="",
                 value=self.default,
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -84,7 +85,7 @@ class FormEntry:
             result = ui.text_area(
                 label="",
                 value=self.default,
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -93,7 +94,7 @@ class FormEntry:
             result = ui.number_input(
                 label="",
                 value=self.default if self.default is not None else 0,
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -105,7 +106,7 @@ class FormEntry:
                 label="",
                 options=self.options,
                 index=self.options.index(self.default) if self.default in self.options else 0,
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -117,7 +118,7 @@ class FormEntry:
                 label="",
                 options=self.options,
                 index=self.options.index(self.default) if self.default in self.options else 0,
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -129,7 +130,7 @@ class FormEntry:
                 label="",
                 options=self.options,
                 default=self.default if self.default else [],
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -140,7 +141,7 @@ class FormEntry:
             result = ui.checkbox(
                 checkbox_title,
                 value=self.default if self.default is not None else False,
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -149,7 +150,7 @@ class FormEntry:
             result = ui.date_input(
                 label="",
                 value=self.default,
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -161,7 +162,7 @@ class FormEntry:
                 label="",
                 options=self.options,
                 value=self.default if self.default else self.options[0],
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )
@@ -172,7 +173,7 @@ class FormEntry:
             result = ui.segmented_control(
                 label="",
                 options=self.options,
-                help=help_text,
+                #help=help_text,
                 key=self.extra_params.get("key", self.name),
                 **{k: v for k, v in self.extra_params.items() if k != "key"}
             )

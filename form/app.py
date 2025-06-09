@@ -234,6 +234,7 @@ def display_report_recipients(recipients):
 def display_file_upload():
     """Display file upload section"""
     uploaded_files = st.file_uploader("Upload Relevant Files: Any files that pertain to the reproducibility or documentation of the flaw. Please title them and refer to them in descriptions.", accept_multiple_files=True)
+    st.caption("You can upload any relevant files that pertain to the reproducibility or documentation of the flaw. Please title them and refer to them in descriptions.")
     if uploaded_files:
         st.session_state.uploaded_files = uploaded_files
         st.write(f"{len(uploaded_files)} file(s) uploaded")
