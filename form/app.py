@@ -343,11 +343,6 @@ def create_app():
                 real_world_fields = form_sections.display_real_world_event_fields()
                 st.session_state.form_data.update(real_world_fields)
             
-            # Malign Actor fields
-            if "Malign Actor" in report_types:
-                malign_actor_fields = form_sections.display_malign_actor_fields()
-                st.session_state.form_data.update(malign_actor_fields)
-            
             # Security Incident Report fields
             if "Security Incident Report" in report_types:
                 security_incident_fields = form_sections.display_security_incident_fields()

@@ -130,6 +130,16 @@ form_entries = {
         info_text="What impacts could happen",
         required=True
     ),
+
+    "specific_harm_types": FormEntry(
+        name="Specific Impact Types",
+        title="Specific Impact Types",
+        input_type=InputType.MULTISELECT,
+        options=[], # dynamic population
+        help_text="Select the specific types of harm that apply based on your impact selections.",
+        info_text="Detailed harm classifications from the taxonomy",
+        required=False
+    ),
     
     "impacted_stakeholders": FormEntry(
         name="Impacted Stakeholder(s)",
@@ -177,17 +187,6 @@ form_entries = {
         info_text="What kind of harm happened",
         required=True,
         extra_params={"key": "experienced_harm_types"}
-    ),
-    
-    "malign_actor_impacts": FormEntry(
-        name="Malign Actor Impacts",
-        title="Malign Actor Impacts",
-        input_type=InputType.MULTISELECT,
-        options=MALIGN_ACTOR_IMPACT_OPTIONS,
-        help_text="Choose the types of impacts from malign actor activities.",
-        info_text="Possible attacker impacts",
-        required=True,
-        extra_params={"key": "malign_actor_impacts"}
     ),
 
     "experienced_harm_severity": FormEntry(

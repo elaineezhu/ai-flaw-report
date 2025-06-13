@@ -107,34 +107,41 @@ def display_common_fields():
         else:
             severity = form_entries["severity"].to_streamlit()
     
-    col1, col2 = st.columns(2)
-    with col1:
-        # Conditionally display the appropriate impacts form entry
-        if "Real-World Incidents" in report_types:
-            impacts = form_entries["experienced_harm_types"].to_streamlit()
+    # Conditionally display the appropriate impacts form entry
+    if "Real-World Incidents" in report_types:
+        impacts = form_entries["experienced_harm_types"].to_streamlit()
             
-        elif "Malign Actor" in report_types:
-            impacts = form_entries["malign_actor_impacts"].to_streamlit()
-            
-        else:
-            impacts = form_entries["impacts"].to_streamlit()
+    else:
+        impacts = form_entries["impacts"].to_streamlit()
         
-        impacts_other = ""
-        if impacts and "Other" in impacts:
-            impacts_other = st.text_input(
-                "Please specify other impacts/harms:",
-                key="impacts_other_specify"
-            )
+    impacts_other = ""
+    if impacts and "Other" in impacts:
+        impacts_other = st.text_input(
+            "Please specify other impacts/harms:", key="impacts_other_specify"
+        )
+    specific_harm_types = []
+    if impacts:
+        combined_options = []
+        for impact in impacts:
+            if impact in HARM_TYPE_MAPPINGS:
+                combined_options.extend(HARM_TYPE_MAPPINGS[impact])
+        
+        if combined_options:
+            form_entries["specific_harm_types"].options = combined_options
+            form_entries["specific_harm_types"].extra_params = {
+                "key": "specific_harm_types_selection"
+            }
             
-    with col2:
-        impacted_stakeholders = form_entries["impacted_stakeholders"].to_streamlit()
+            specific_harm_types = form_entries["specific_harm_types"].to_streamlit()
+            
+    impacted_stakeholders = form_entries["impacted_stakeholders"].to_streamlit()
 
-        impacted_stakeholders_other = ""
-        if impacted_stakeholders and "Other" in impacted_stakeholders:
-            impacted_stakeholders_other = st.text_input(
-                "Please specify other impacted stakeholders:",
-                key="impacted_stakeholders_other_specify"
-            )
+    impacted_stakeholders_other = ""
+    if impacted_stakeholders and "Other" in impacted_stakeholders:
+        impacted_stakeholders_other = st.text_input(
+            "Please specify other impacted stakeholders:",
+            key="impacted_stakeholders_other_specify"
+        )
     
     
     # Check if CSAM is selected and handle accordingly
