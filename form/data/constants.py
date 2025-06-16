@@ -286,4 +286,19 @@ REPORT_TYPES = [
     "Hazard Report"
 ]
 
+ATTACKER_RESOURCES_OPTIONS = [
+    "Training data/feedback control",
+    "Model/system supply chain control", 
+    "Direct query access — white-box",
+    "Direct query access — black-box",
+    "Direct query access — grey-box",
+    "Application/plugin supply chain control",
+    "Application/plugin output control"
+]
 
+ATTACKER_OBJECTIVES_OPTIONS = [
+    "Availability breakdown",
+    "Integrity violation",
+    "Privacy compromise", 
+    "Abuse violation"
+]

@@ -207,13 +207,36 @@ form_entries = {
     ),
     
     # Malign Actor Fields
-    "tactic_select": FormEntry(
-        name="Tactic Select",
-        title="Tactic Select",
+    "attacker_resources": FormEntry(
+        name="Attacker Resources",
+        title="Attacker Resources",
         input_type=InputType.MULTISELECT,
-        options=TACTIC_OPTIONS,
-        help_text="Pick tactics that bad actors might use to exploit this flaw.",
-        info_text="Possible attack tactics"
+        options=ATTACKER_RESOURCES_OPTIONS,
+        help_text="Select the types of access or control the attacker has.",
+        info_text="What resources does the attacker have access to?",
+        required=False,
+        extra_params={"key": "attacker_resources_selection"}
+    ),
+    
+    "attacker_objectives": FormEntry(
+        name="Attacker Objectives", 
+        title="Attacker Objectives",
+        input_type=InputType.MULTISELECT,
+        options=ATTACKER_OBJECTIVES_OPTIONS,
+        help_text="Select what the attacker is trying to achieve.",
+        info_text="What are the attacker's goals?",
+        required=False,
+        extra_params={"key": "attacker_objectives_selection"}
+    ),
+    
+    "objective_context": FormEntry(
+        name="Objective Context",
+        title="Objective Context", 
+        input_type=InputType.TEXT_AREA,
+        help_text="Provide more context about the attacker's specific goals and motivations.",
+        info_text="Additional details about what the attacker wants to accomplish",
+        required=False,
+        extra_params={"key": "objective_context_input"}
     ),
     
     "impact": FormEntry(

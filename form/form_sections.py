@@ -222,15 +222,21 @@ def display_real_world_event_fields():
     }
 
 def display_malign_actor_fields():
-    """Display fields for Malign Actor report type"""
+    """Display fields for Malign Actor report type with enhanced tactic selection"""
     st.subheader("Malign Actor Details")
     
-    tactic_select = form_entries["tactic_select"].to_streamlit()
-    tactic_select_other = handle_other_option(tactic_select, tactic_select, "Please specify other tactics:")
-        
+    attacker_resources = form_entries["attacker_resources"].to_streamlit()
+
+    attacker_objectives = form_entries["attacker_objectives"].to_streamlit()
+    
+    objective_context = ""
+    if attacker_objectives and len(attacker_objectives) > 0:
+        objective_context = form_entries["objective_context"].to_streamlit()
+    
     return {
-        "Tactic Select": tactic_select,
-        "Tactic_Select_Other": tactic_select_other,
+        "Attacker Resources": attacker_resources,
+        "Attacker Objectives": attacker_objectives,
+        "Objective Context": objective_context
     }
 
 def display_security_incident_fields():
