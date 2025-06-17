@@ -319,5 +319,28 @@ form_entries = {
         input_type=InputType.TEXT_AREA,
         help_text="If you want to delay public release, explain your embargo request.",
         info_text="Details for embargo request"
-    )
+    ),
+
+    # Responsible Factors Fields
+    "responsible_factors": FormEntry(
+        name="Responsible Factors",
+        title="Responsible Factors",
+        input_type=InputType.MULTISELECT,
+        options=RESPONSIBLE_FACTORS_OPTIONS,
+        help_text="Select the technical factors that contributed to this flaw.",
+        info_text="What aspects of the system contributed to the flaw?",
+        required=False,
+        extra_params={"key": "responsible_factors_selection"}
+    ),
+    
+    "responsible_factors_context": FormEntry(
+        name="Responsible Factors Context",
+        title="Responsible Factors Context",
+        input_type=InputType.TEXT_AREA,
+        help_text="Provide additional evidence about each of the factors identified which contributed to the flaw.",
+        info_text="Additional details about how these factors contributed to the flaw",
+        required=False,
+        extra_params={"key": "responsible_factors_context_input"}
+    ),
+    
 }

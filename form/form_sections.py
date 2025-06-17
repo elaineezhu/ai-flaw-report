@@ -171,6 +171,8 @@ def display_common_fields():
     col1, col2 = st.columns(2)
     risk_sources = form_entries["risk_source"].to_streamlit()
     
+    responsible_factors_data = display_responsible_factors()
+    
     if is_incident:
         description_key = "Incident Description"
         description_value = combined_incident_description
@@ -182,8 +184,10 @@ def display_common_fields():
             "Severity": severity,
             "Impacts": impacts, 
             "Impacts_Other": impacts_other,
+            "Specific Harm Types": specific_harm_types,
             "Impacted Stakeholder(s)": impacted_stakeholders,
-            "Risk Source(s)": risk_sources
+            "Risk Source(s)": risk_sources,
+            **responsible_factors_data
         }
     else:
         description_key = "Flaw Description"
@@ -196,8 +200,10 @@ def display_common_fields():
             "Severity": severity,
             "Impacts": impacts, 
             "Impacts_Other": impacts_other,
+            "Specific Harm Types": specific_harm_types,
             "Impacted Stakeholder(s)": impacted_stakeholders,
-            "Risk Source(s)": risk_sources
+            "Risk Source(s)": risk_sources,
+            **responsible_factors_data
         }
 
 
@@ -259,6 +265,52 @@ def display_hazard_fields():
     
     return {
         "Statistical Argument with Examples": statistical_argument
+    }
+
+def display_responsible_factors():
+    """Display responsible factors section with nested subcategories"""
+    st.subheader("Technical Analysis")
+    st.markdown("Please identify the technical factors that contributed to this flaw.")
+    
+    responsible_factors = form_entries["responsible_factors"].to_streamlit()
+    
+    subcategory_selections = {}
+    
+    if responsible_factors:
+        st.markdown("**Specific Factor Details:**")
+        st.markdown("Please select the specific subcategories that apply to each factor you identified:")
+        
+        for factor in responsible_factors:
+            if factor in RESPONSIBLE_FACTORS_SUBCATEGORIES:
+                st.markdown(f"**{factor}:**")
+                
+                subcategory_key = f"subcategory_{factor.lower().replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '').replace(',', '')}"
+                subcategory_options = RESPONSIBLE_FACTORS_SUBCATEGORIES[factor]
+                
+                selected_subcategories = st.multiselect(
+                    f"Select {factor.lower()} subcategories:",
+                    options=subcategory_options,
+                    key=subcategory_key
+                )
+                
+                if selected_subcategories:
+                    subcategory_selections[factor] = selected_subcategories
+                
+                if factor == "Tool outputs/external inputs" and selected_subcategories:
+                    for subcategory in selected_subcategories:
+                        if subcategory in TOOL_OUTPUT_DESCRIPTIONS:
+                            st.caption(f"*{subcategory}: {TOOL_OUTPUT_DESCRIPTIONS[subcategory]}*")
+                
+                st.markdown("")
+    
+    responsible_factors_context = ""
+    if responsible_factors and len(responsible_factors) > 0:
+        responsible_factors_context = form_entries["responsible_factors_context"].to_streamlit()
+    
+    return {
+        "Responsible Factors": responsible_factors,
+        "Responsible Factors Subcategories": subcategory_selections,
+        "Responsible Factors Context": responsible_factors_context
     }
 
 def display_disclosure_plan():

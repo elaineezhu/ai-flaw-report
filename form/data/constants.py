@@ -302,3 +302,60 @@ ATTACKER_OBJECTIVES_OPTIONS = [
     "Privacy compromise", 
     "Abuse violation"
 ]
+
+RESPONSIBLE_FACTORS_OPTIONS = [
+    "Training data",
+    "Feedback", 
+    "System prompt",
+    "Tool instructions",
+    "Tool outputs/external inputs",
+    "Supply chain weaknesses (e.g., software libraries and hardware)",
+    "User prompt",
+    "Memory",
+    "Multi-agent interactions",
+    "Other"
+]
+
+RESPONSIBLE_FACTORS_SUBCATEGORIES = {
+    "Training data": [
+        "Data poisoning",
+        "Sensitive information (e.g., PII)",
+        "Other"
+    ],
+    "Feedback": [
+        "Poisoning",
+        "Misspecification (no threat actor)",
+        "Other"
+    ],
+    "Tool instructions": [
+        "Indirect prompt injection",
+        "Malicious code execution",
+        "Other"
+    ],
+    "Tool outputs/external inputs": [
+        "Resource overload/accessibility issues",
+        "Reliability issues (e.g., false information)",
+        "Indirect prompt injection"
+    ],
+    "Memory": [
+        "Indirect prompt injection (memory poisoning)",
+        "False information/cascading hallucinations",
+        "Vector and embedding weaknesses",
+        "Sensitive information"
+    ],
+    "User prompt": [
+        "Misinterpretation of user instructions",
+        "Jailbreak/adversarial attack",
+        "Other"
+    ],
+    "Multi-agent interactions": [
+        "Agent communication poisoning",
+        "Rogue agents",
+        "Other"
+    ]
+}
+
+TOOL_OUTPUT_DESCRIPTIONS = {
+    "Resource overload/accessibility issues": "Tools and/or their outputs are not available to the agent",
+    "Reliability issues (e.g., false information)": "Tools do not always function as intended (excludes cases of malicious attacks)"
+}
