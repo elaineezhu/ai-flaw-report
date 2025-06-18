@@ -314,7 +314,7 @@ def create_app():
         
     This form creates a report *for you*. Reports are handled in **strict confidence**, and **will not be saved or sent unless you choose to submit them**.
         
-    Please feel free to contact us at _____ for questions or information.
+    Please feel free to contact us at aiflawreports@gmail.com for questions or information.
     """)
     
     display_report_type_classification()

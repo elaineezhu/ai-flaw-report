@@ -218,7 +218,7 @@ HARM_TYPES = [
     "Environmental",
     "Public interest/critical infrastructure",
     "Fundamental rights",
-    "Child sexual-abuse material (CSAM)",
+    "Sexualization",
     "Other"
 ]
 
@@ -230,7 +230,7 @@ EXPERIENCED_HARM_OPTIONS = [
     "Environmental",
     "Public interest/critical infrastructure",
     "Fundamental rights",
-    "Child sexual-abuse material (CSAM)",
+    "Sexualization",
     "Other"
 ]
 
@@ -287,20 +287,20 @@ REPORT_TYPES = [
 ]
 
 ATTACKER_RESOURCES_OPTIONS = [
-    "Training data/feedback control",
-    "Model/system supply chain control", 
-    "Direct query access — white-box",
-    "Direct query access — black-box",
-    "Direct query access — grey-box",
-    "Application/plugin supply chain control",
-    "Application/plugin output control"
+    "Training data/feedback control — An attacker can modify training data/feedback and/or insert a subset of examples.",
+    "Model/system supply chain control — An attacker can modify the AI model itself, such as via public fine-tuning", 
+    "Direct query access — white-box — An attacker can query the system—the degree of control can vary substantially (e.g., ability to control temperature, view logits, etc.).",
+    "Direct query access — black-box — An attacker can query the system—the degree of control can vary substantially (e.g., ability to control temperature, view logits, etc.).",
+    "Direct query access — grey-box — An attacker can query the system—the degree of control can vary substantially (e.g., ability to control temperature, view logits, etc.).",
+    "Application/plugin supply chain control — An attacker can modify the agent framework, tools and/or services with which a model interacts, such as introducing vulnerabilities into application software or appending malicious text to plugin instructions.",
+    "Application/plugin output control — An attacker can modify the context that the agent views during inference by modifying sources (e.g., webpages, memory, etc.)."
 ]
 
 ATTACKER_OBJECTIVES_OPTIONS = [
-    "Availability breakdown",
-    "Integrity violation",
-    "Privacy compromise", 
-    "Abuse violation"
+    "Availability breakdown — An attacker disrupts the ability of users to obtain access to AI systems or their functionality.",
+    "Integrity violation —  An attacker causes AI systems to perform tasks inadequately or behave undesirably.",
+    "Privacy compromise — An attacker gains access to sensitive and confidential information, including information about the AI system (e.g., architecture or weights) or sensitive information that the model accesses (e.g., training data, external knowledge databases.", 
+    "Abuse violation — An attacker uses an AI system for purposes that are harmful or otherwise unintended by the developer, often by evading guardrails."
 ]
 
 RESPONSIBLE_FACTORS_OPTIONS = [

@@ -91,6 +91,7 @@ def display_common_fields():
         combined_flaw_description = f"""**Detailed Description:**
         {flaw_detailed or ''}
         """
+    
     selected_systems = st.session_state.get('systems_selections', [])
     display_policy_links(selected_systems)
     policy_violation = form_entries["policy_violation"].to_streamlit()
@@ -110,7 +111,6 @@ def display_common_fields():
     # Conditionally display the appropriate impacts form entry
     if "Real-World Incidents" in report_types:
         impacts = form_entries["experienced_harm_types"].to_streamlit()
-            
     else:
         impacts = form_entries["impacts"].to_streamlit()
         
@@ -119,6 +119,32 @@ def display_common_fields():
         impacts_other = st.text_input(
             "Please specify other impacts/harms:", key="impacts_other_specify"
         )
+    
+    csam_related_answer = None
+    csam_selected = False
+    
+    if impacts and "Sexualization" in impacts:
+        st.markdown("**Additional Information Required:**")
+        csam_related_answer = form_entries["csam_related_question"].to_streamlit()
+        
+        if csam_related_answer == "Yes":
+            csam_selected = True
+            st.error("""
+            ## IMPORTANT: CSAM Reporting Guidelines
+            
+            **Reports involving CSAM cannot be submitted through this form. Please use the appropriate channels below.**
+                    
+            ### What to do instead:
+            1. Report to the **National Center for Missing & Exploited Children (NCMEC)** via their CyberTipline: https://report.cybertip.org/
+            2. If outside the US, report to the **Internet Watch Foundation (IWF)**: https://report.iwf.org.uk/
+            3. Report directly to the AI model developer through their official channels
+            
+            **To continue with this form, please change your answer above to "No" if this does not involve child-related content.**
+            """)
+    
+    st.session_state['csam_selected'] = csam_selected
+    
+    # Specific harm types
     specific_harm_types = []
     if impacts:
         combined_options = []
@@ -143,35 +169,9 @@ def display_common_fields():
             key="impacted_stakeholders_other_specify"
         )
     
-    
-    # Check if CSAM is selected and handle accordingly
-    csam_selected = impacts and "Child sexual-abuse material (CSAM)" in impacts
-    
-    if csam_selected:
-        st.error("""
-        ## IMPORTANT: CSAM Reporting Guidelines
-        
-        **Reports involving CSAM cannot be submitted through this form. Please use the appropriate channels below.**
-                
-        ### What to do instead:
-        1. Report to the **National Center for Missing & Exploited Children (NCMEC)** via their CyberTipline: https://report.cybertip.org/
-        2. If outside the US, report to the **Internet Watch Foundation (IWF)**: https://report.iwf.org.uk/
-        3. Report directly to the AI model developer through their official channels
-        
-        **To continue with this form, please deselect CSAM from the impacts list.**
-        """)
-        
-        # Set CSAM flag to prevent submission
-        st.session_state['csam_selected'] = True
-    else:
-        # Clear CSAM flag if not selected
-        st.session_state['csam_selected'] = False
-    
     # Risk Source
     col1, col2 = st.columns(2)
     risk_sources = form_entries["risk_source"].to_streamlit()
-    
-    responsible_factors_data = display_responsible_factors()
     
     if is_incident:
         description_key = "Incident Description"
@@ -184,10 +184,10 @@ def display_common_fields():
             "Severity": severity,
             "Impacts": impacts, 
             "Impacts_Other": impacts_other,
+            "CSAM Related": csam_related_answer,
             "Specific Harm Types": specific_harm_types,
             "Impacted Stakeholder(s)": impacted_stakeholders,
-            "Risk Source(s)": risk_sources,
-            **responsible_factors_data
+            "Risk Source(s)": risk_sources
         }
     else:
         description_key = "Flaw Description"
@@ -200,11 +200,23 @@ def display_common_fields():
             "Severity": severity,
             "Impacts": impacts, 
             "Impacts_Other": impacts_other,
+            "CSAM Related": csam_related_answer,
             "Specific Harm Types": specific_harm_types,
             "Impacted Stakeholder(s)": impacted_stakeholders,
-            "Risk Source(s)": risk_sources,
-            **responsible_factors_data
+            "Risk Source(s)": risk_sources
         }
+
+def check_csam_in_impacts(form_data):
+    """Updated function to check CSAM based on the new conditional logic"""
+    impacts = form_data.get("Impacts", [])
+    experienced_harm_types = form_data.get("Experienced Harm Types", [])
+    csam_related = form_data.get("CSAM Related", "")
+    
+    if (impacts and "Sexualization" in impacts and csam_related == "Yes") or \
+       (experienced_harm_types and "Sexualization" in experienced_harm_types and csam_related == "Yes"):
+        return True
+    
+    return False
 
 
 def display_real_world_event_fields():
@@ -269,9 +281,6 @@ def display_hazard_fields():
 
 def display_responsible_factors():
     """Display responsible factors section with nested subcategories"""
-    st.subheader("Technical Analysis")
-    st.markdown("Please identify the technical factors that contributed to this flaw.")
-    
     responsible_factors = form_entries["responsible_factors"].to_streamlit()
     
     subcategory_selections = {}

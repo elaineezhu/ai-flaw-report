@@ -159,6 +159,17 @@ form_entries = {
         help_text="Pick the causes you think led to this flaw.",
         info_text="Where the flaw might come from"
     ),
+
+    "csam_related_question": FormEntry(
+        name="CSAM Related Question",
+        title="Is this flaw related to child sexual-abuse material, or any explicit sexualization of children?",
+        input_type=InputType.RADIO,
+        options=["Yes", "No"],
+        help_text="Please answer this question to help us route your report appropriately.",
+        info_text="CSAM-related content requires special handling",
+        required=True,
+        extra_params={"key": "csam_related_selection"}
+    ),
     
     # Real-World Event Fields
     "submitter_relationship": FormEntry(
