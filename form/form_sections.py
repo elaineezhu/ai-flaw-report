@@ -171,7 +171,8 @@ def display_common_fields():
     
     # Risk Source
     col1, col2 = st.columns(2)
-    risk_sources = form_entries["risk_source"].to_streamlit()
+    risk_sources = display_responsible_factors()
+
     
     if is_incident:
         description_key = "Incident Description"
