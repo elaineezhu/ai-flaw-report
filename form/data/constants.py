@@ -93,7 +93,8 @@ IMPACT_OPTIONS = [
     "Human Rights and Civil Liberties",
     "Societal and Cultural",
     "Political and Economic",
-    "Environmental"
+    "Environmental",
+    "Sexualization"
 ]
 
 HARM_TYPE_MAPPINGS = {
