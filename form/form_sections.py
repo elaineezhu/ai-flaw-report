@@ -180,7 +180,7 @@ def display_common_fields():
         return {
             description_key: description_value,
             "Incident Description - Detailed": incident_detailed,
-            "Policy Violation": policy_violation,
+            "Potential Policy Violation": policy_violation,
             "Prevalence": prevalence,
             "Severity": severity,
             "Impacts": impacts, 

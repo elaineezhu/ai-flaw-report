@@ -95,8 +95,8 @@ form_entries = {
     ),
     
     "policy_violation": FormEntry(
-        name="Policy Violation",
-        title="Policy Violation",
+        name="Potential Policy Violations",
+        title="Potential Policy Violations",
         input_type=InputType.TEXT_AREA,
         required=True,
         help_text="Point to any rules or policies the AI broke and explain why it is wrong.",
@@ -283,7 +283,7 @@ form_entries = {
         name="Proof-of-Concept Exploit",
         title="Proof-of-Concept Exploit",
         input_type=InputType.TEXT_AREA,
-        help_text="Share code or steps that show the vulnerability is real.",
+        help_text="Share code or steps that show the flaw is real.",
         info_text="Exploit code or documentation"
     ),
     
@@ -301,7 +301,7 @@ form_entries = {
         name="Disclosure Intent",
         title="Disclosure Intent",
         input_type=InputType.RADIO,
-        options=["Yes", "No", "Undecided"],
+        options=["Yes", "No", "Undecided", "Already Public Knowledge"],
         help_text="Tell us if you want to disclose this issue publicly.",
         info_text="Do you plan to share this publicly?"
     ),
