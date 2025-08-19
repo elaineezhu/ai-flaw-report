@@ -94,44 +94,43 @@ def check_csam_harm_selected(harm_types):
 
 def handle_submission():
     """Combine all data and prepare for submission"""
-    form_data = st.session_state.form_data.copy()
+    complete_form_data = st.session_state.form_data.copy()
+    complete_form_data.update(st.session_state.common_data)
     
-    form_data.update(st.session_state.common_data)
-    
-    if check_csam_in_impacts(form_data):
+    if check_csam_in_impacts(complete_form_data):
         st.error("⚠️ **Submission blocked:** CSAM-related reports cannot be submitted through this form.")
         return
     
-    if "Report ID" not in form_data and "report_id" in st.session_state:
-        form_data["Report ID"] = st.session_state.report_id
+    if "Report ID" not in complete_form_data and "report_id" in st.session_state:
+        complete_form_data["Report ID"] = st.session_state.report_id
     
-    form_data["Submission Timestamp"] = datetime.now().isoformat()
+    complete_form_data["Submission Timestamp"] = datetime.now().isoformat()
     
     if st.session_state.uploaded_files:
         file_names = [file.name for file in st.session_state.uploaded_files]
-        form_data["Uploaded Files"] = file_names
+        complete_form_data["Uploaded Files"] = file_names
     
-    st.session_state.form_data = form_data
+    st.session_state.complete_form_data = complete_form_data
     st.session_state.submission_status = True
 
 def show_report_submission_results(form_data):
     """Redesigned to separate Created vs Submitted states"""
     st.success("Report successfully created!")
 
-    report_id = form_data.get("Report ID", st.session_state.get("report_id", "unknown"))
-    form_data["Report ID"] = report_id
+    complete_data = st.session_state.get('complete_form_data', form_data)
+    
+    report_id = complete_data.get("Report ID", st.session_state.get("report_id", "unknown"))
+    complete_data["Report ID"] = report_id
     
     st.info(f"Here is the Report ID you can save for your reference in the future: **{report_id}**")
     
     storage_provider = get_storage_provider()
     
-    # Make sure the provider is initialized before saving
     if not hasattr(storage_provider, 'initialized') or not storage_provider.initialized:
-        #st.sidebar.warning("Storage provider not initialized. Re-initializing...")
         initialized = storage_provider.initialize()
     
-    report_path, machine_readable_output = storage_provider.save_report(form_data)
-    
+    report_path, machine_readable_output = storage_provider.save_report(complete_data)
+        
     st.subheader("Your Report Has Been Created")
     st.write("Your report has been saved and is available for download in the following formats:")
     
@@ -388,8 +387,9 @@ def create_app():
                 
                 is_incident = "Real-World Incidents" in report_types or "Security Incident Report" in report_types
                 description_field = "Incident Description" if is_incident else "Flaw Description"
+                policy_violation_field = "Potential Policy Violation" if is_incident else "Policy Violation"
                 
-                required_fields.extend([description_field, "Policy Violation", "Impacts", "Impacted Stakeholder(s)"])
+                required_fields.extend([description_field, policy_violation_field, "Impacts", "Impacted Stakeholder(s)"])
                 required_fields.append("Disclosure Intent")
                 
                 all_data = {**st.session_state.common_data, **st.session_state.form_data}
@@ -407,4 +407,4 @@ def create_app():
                     handle_submission()
 
     if st.session_state.submission_status:
-        show_report_submission_results(st.session_state.form_data)
+        show_report_submission_results(st.session_state.get('complete_form_data', st.session_state.form_data))
