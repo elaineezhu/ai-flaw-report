@@ -3,4 +3,4 @@ numpy
 streamlit==1.42.0
 datasets
 duckdb
-pydantic
+pyld
