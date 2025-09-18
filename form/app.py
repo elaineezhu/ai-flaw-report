@@ -93,22 +93,99 @@ def check_csam_harm_selected(harm_types):
     return True
 
 def handle_submission():
-    """Combine all data and prepare for submission"""
-    complete_form_data = st.session_state.form_data.copy()
-    complete_form_data.update(st.session_state.common_data)
+    """Combine all data and prepare for submission with proper field ordering"""
     
-    if check_csam_in_impacts(complete_form_data):
-        st.error("⚠️ **Submission blocked:** CSAM-related reports cannot be submitted through this form.")
-        return
+    # Build the complete form data in the desired order
+    complete_form_data = {}
     
+    # 1. Basic Information (from common_data)
+    basic_fields = ["Reporter ID", "Session ID", "Flaw Timestamp Start", "Systems"]
+    for field in basic_fields:
+        if field in st.session_state.common_data:
+            complete_form_data[field] = st.session_state.common_data[field]
+    
+    # 2. Description Fields (from common_data)
+    description_fields = [
+        "Flaw Description", "Flaw Description - Detailed",
+        "Incident Description", "Incident Description - Detailed", 
+        "Policy Violation", "Potential Policy Violation"
+    ]
+    for field in description_fields:
+        if field in st.session_state.common_data:
+            complete_form_data[field] = st.session_state.common_data[field]
+    
+    # 3. Risk and Impact Assessment (from common_data)
+    risk_impact_fields = [
+        "Prevalence", "Severity", "Impacts", "Impacts_Other", "CSAM Related",
+        "Specific Harm Types", "Impacted Stakeholder(s)", "Risk Source(s)"
+    ]
+    for field in risk_impact_fields:
+        if field in st.session_state.common_data:
+            complete_form_data[field] = st.session_state.common_data[field]
+    
+    # 4. Reproducibility (from common_data)
+    reproducibility_fields = ["Context Info", "Proof-of-Concept Exploit"]
+    for field in reproducibility_fields:
+        if field in st.session_state.common_data:
+            complete_form_data[field] = st.session_state.common_data[field]
+    
+    # 5. Disclosure Plan (from form_data) - Should appear BEFORE conditional sections
+    disclosure_fields = [
+        "Disclosure Intent", "Disclosure Timeline", "Disclosure Channels", 
+        "Disclosure_Channels_Other", "Embargo Request"
+    ]
+    for field in disclosure_fields:
+        if field in st.session_state.form_data:
+            complete_form_data[field] = st.session_state.form_data[field]
+    
+    # 6. Real-World Incident Fields (from form_data)
+    real_world_fields = [
+        "Submitter Relationship", "Submitter_Relationship_Other", 
+        "Incident Location(s)", "Harm Narrative"
+    ]
+    for field in real_world_fields:
+        if field in st.session_state.form_data:
+            complete_form_data[field] = st.session_state.form_data[field]
+    
+    # 7. Malign Actor Fields (from form_data)
+    malign_actor_fields = [
+        "Attacker Resources", "Attacker Objectives", "Objective Context"
+    ]
+    for field in malign_actor_fields:
+        if field in st.session_state.form_data:
+            complete_form_data[field] = st.session_state.form_data[field]
+    
+    # 8. Security Incident Fields (from form_data)
+    security_fields = ["Detection", "Detection_Other"]
+    for field in security_fields:
+        if field in st.session_state.form_data:
+            complete_form_data[field] = st.session_state.form_data[field]
+    
+    # 9. Hazard Fields (from form_data) - Now appears near the end
+    hazard_fields = ["Statistical Argument with Examples"]
+    for field in hazard_fields:
+        if field in st.session_state.form_data:
+            complete_form_data[field] = st.session_state.form_data[field]
+    
+    # 10. Report Classification
+    if "Report Types" in st.session_state.form_data:
+        complete_form_data["Report Types"] = st.session_state.form_data["Report Types"]
+    
+    # 11. System-generated fields
     if "Report ID" not in complete_form_data and "report_id" in st.session_state:
         complete_form_data["Report ID"] = st.session_state.report_id
     
     complete_form_data["Submission Timestamp"] = datetime.now().isoformat()
     
+    # 12. File uploads
     if st.session_state.uploaded_files:
         file_names = [file.name for file in st.session_state.uploaded_files]
         complete_form_data["Uploaded Files"] = file_names
+    
+    # Check for CSAM after building complete data
+    if check_csam_in_impacts(complete_form_data):
+        st.error("⚠️ **Submission blocked:** CSAM-related reports cannot be submitted through this form.")
+        return
     
     st.session_state.complete_form_data = complete_form_data
     st.session_state.submission_status = True

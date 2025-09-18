@@ -97,29 +97,30 @@ class AISystem(BaseModel):
     publisher_info: Optional[Dict[str, Any]] = Field(None, description="Publisher/organization data")
 
 class ProcessedAIFlawReport(BaseModel):
-    """Fully processed flaw report with enriched data"""
-    report_id: str = Field(..., description="Generated report ID")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-    ai_systems: List[AISystem] = Field(..., description="Fully enriched system data")
-
-    # Core Flaw Data
+    """Fully processed flaw report with enriched data - fields ordered to match form flow"""
+    
+    # Basic Information
     reporter_id: Optional[str] = None
+    report_id: str = Field(..., description="Generated report ID")
     session_id: Optional[str] = None
+    ai_systems: List[AISystem] = Field(..., description="Fully enriched system data")
     flaw_timestamp_start: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    
+    # Core Description
     flaw_description: str
     policy_violation: str
-
-    # Assessment Data
-    severity: str
+    
+    # Risks and Impact
     prevalence: str
+    severity: str
     impacts: List[str] = Field(default=[])
     specific_harm_types: List[str] = Field(default=[])
     impacted_stakeholders: List[str] = Field(default=[])
-
+    
     # Report Classification
     report_types: List[str] = Field(default=[])
-
+    
     # Conditional Sections
     incident_data: Optional[Dict[str, Any]] = None
     security_data: Optional[Dict[str, Any]] = None
@@ -131,7 +132,124 @@ class ProcessedAIFlawReport(BaseModel):
     disclosure_timeline: Optional[str] = None
     disclosure_channels: List[str] = Field(default=[])
 
+    # Raw data storage
     raw_data: Optional[Dict[str, Any]] = Field(default=None, repr=False)
+
+
+def process_raw_report(raw_data: Dict[str, Any]) -> ProcessedAIFlawReport:
+    """Convert raw form data to processed report by resolving AI systems"""
+    
+    raw_report = RawAIFlawReport.model_validate(raw_data)
+    kb = AIFlawKnowledgeBase()
+    
+    report_id = raw_data.get("Report ID") or f"AFL-{hashlib.md5(json.dumps(raw_data, sort_keys=True).encode()).hexdigest()[:8]}"
+    
+    ai_systems = []
+    systems_list = raw_report.systems or []
+    for system_name in systems_list:
+        system_data = kb.find_system_by_name_or_slug(system_name)
+        if system_data:
+            internal_data = system_data.get("_aifr_internal", {})
+            ai_system = AISystem(
+                id=system_data.get("@id", f"https://aiflawreports.org/systems/{system_name}"),
+                name=system_data.get("name", system_name),
+                version=system_data.get("version", ""),
+                slug=internal_data.get("slug", system_name),
+                display_name=internal_data.get("displayName", system_name),
+                system_type="known"
+            )
+        else:
+            ai_system = AISystem(
+                id=f"https://aiflawreports.org/systems/{system_name.replace(' ', '_')}",
+                name=system_name,
+                version="",
+                slug=system_name,
+                display_name=system_name,
+                system_type="partially_known"
+            )
+        ai_systems.append(ai_system)
+    
+    if not ai_systems:
+        ai_systems.append(AISystem(
+            id=f"https://aiflawreports.org/reports/{report_id}/unknown-system",
+            name="Unknown System",
+            version="",
+            slug="",
+            display_name="Unknown System",
+            system_type="unknown",
+            description="No specific system identified"
+        ))
+    
+    if raw_report.incident_description:
+        description = raw_report.incident_description
+    elif raw_report.incident_description_detailed:
+        description = f"**Detailed Description:**\n{raw_report.incident_description_detailed}"
+    elif raw_report.flaw_description:
+        description = raw_report.flaw_description
+    elif raw_report.flaw_description_detailed:
+        description = f"**Detailed Description:**\n{raw_report.flaw_description_detailed}"
+    else:
+        description = "No description provided"
+    
+    policy_violation = raw_report.policy_violation or raw_report.potential_policy_violation or "Not specified"
+    
+    incident_data = None
+    if "Real-World Incidents" in raw_report.report_types:
+        incident_data = {
+            "description": raw_report.incident_description,
+            "detailed_description": raw_report.incident_description_detailed,
+            "locations": raw_report.incident_locations,
+            "harm_narrative": raw_report.harm_narrative,
+            "submitter_relationship": raw_report.submitter_relationship,
+            "submitter_relationship_other": raw_report.submitter_relationship_other
+        }
+    
+    security_data = None
+    if any(rt in raw_report.report_types for rt in ["Malign Actor", "Security Incident Report"]):
+        security_data = {
+            "attacker_resources": raw_report.attacker_resources or [],
+            "attacker_objectives": raw_report.attacker_objectives or [],
+            "objective_context": raw_report.objective_context,
+            "detection_methods": raw_report.detection_methods or []
+        }
+    
+    vulnerability_data = None
+    if "Vulnerability Report" in raw_report.report_types:
+        vulnerability_data = {
+            "proof_of_concept": raw_report.proof_of_concept
+        }
+    
+    hazard_data = None
+    if "Hazard Report" in raw_report.report_types:
+        hazard_data = {
+            "statistical_argument": raw_report.statistical_argument
+        }
+    
+    processed_report = ProcessedAIFlawReport(
+        reporter_id=raw_report.reporter_id,
+        report_id=report_id,
+        session_id=raw_report.session_id,
+        ai_systems=ai_systems,
+        flaw_timestamp_start=raw_report.flaw_timestamp_start,
+        flaw_description=description,
+        policy_violation=policy_violation,
+        prevalence=raw_report.prevalence or "Unknown",
+        severity=raw_report.severity or "Unknown",
+        impacts=raw_report.impacts or [],
+        specific_harm_types=raw_report.specific_harm_types or [],
+        impacted_stakeholders=raw_report.impacted_stakeholders or [],
+        report_types=raw_report.report_types,
+        incident_data=incident_data,
+        security_data=security_data,
+        vulnerability_data=vulnerability_data,
+        hazard_data=hazard_data,
+        disclosure_intent=raw_report.disclosure_intent,
+        disclosure_timeline=raw_report.disclosure_timeline,
+        disclosure_channels=raw_report.disclosure_channels or []
+    )
+    
+    processed_report.raw_data = raw_data
+    return processed_report
 
 
 def clean_internal_fields(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -239,122 +357,6 @@ class AIFlawKnowledgeBase:
                 jsonld_system["publisher"] = publisher_jsonld
         
         return jsonld_system
-
-
-def process_raw_report(raw_data: Dict[str, Any]) -> ProcessedAIFlawReport:
-    """Convert raw form data to processed report by resolving AI systems"""
-    
-    raw_report = RawAIFlawReport.model_validate(raw_data)
-    kb = AIFlawKnowledgeBase()
-    
-    report_id = raw_data.get("Report ID") or f"AFL-{hashlib.md5(json.dumps(raw_data, sort_keys=True).encode()).hexdigest()[:8]}"
-    
-    ai_systems = []
-    systems_list = raw_report.systems or []
-    for system_name in systems_list:
-        system_data = kb.find_system_by_name_or_slug(system_name)
-        if system_data:
-            internal_data = system_data.get("_aifr_internal", {})
-            ai_system = AISystem(
-                id=system_data.get("@id", f"https://aiflawreports.org/systems/{system_name}"),
-                name=system_data.get("name", system_name),
-                version=system_data.get("version", ""),
-                slug=internal_data.get("slug", system_name),
-                display_name=internal_data.get("displayName", system_name),
-                system_type="known"
-            )
-        else:
-            ai_system = AISystem(
-                id=f"https://aiflawreports.org/systems/{system_name.replace(' ', '_')}",
-                name=system_name,
-                version="",
-                slug=system_name,
-                display_name=system_name,
-                system_type="partially_known"
-            )
-        ai_systems.append(ai_system)
-    
-    if not ai_systems:
-        ai_systems.append(AISystem(
-            id=f"https://aiflawreports.org/reports/{report_id}/unknown-system",
-            name="Unknown System",
-            version="",
-            slug="",
-            display_name="Unknown System",
-            system_type="unknown",
-            description="No specific system identified"
-        ))
-    
-    if raw_report.incident_description:
-        description = raw_report.incident_description
-    elif raw_report.incident_description_detailed:
-        description = f"**Detailed Description:**\n{raw_report.incident_description_detailed}"
-    elif raw_report.flaw_description:
-        description = raw_report.flaw_description
-    elif raw_report.flaw_description_detailed:
-        description = f"**Detailed Description:**\n{raw_report.flaw_description_detailed}"
-    else:
-        description = "No description provided"
-    
-    policy_violation = raw_report.policy_violation or raw_report.potential_policy_violation or "Not specified"
-    
-    incident_data = None
-    if "Real-World Incidents" in raw_report.report_types:
-        incident_data = {
-            "description": raw_report.incident_description,
-            "detailed_description": raw_report.incident_description_detailed,
-            "locations": raw_report.incident_locations,
-            "harm_narrative": raw_report.harm_narrative,
-            "submitter_relationship": raw_report.submitter_relationship,
-            "submitter_relationship_other": raw_report.submitter_relationship_other
-        }
-    
-    security_data = None
-    if any(rt in raw_report.report_types for rt in ["Malign Actor", "Security Incident Report"]):
-        security_data = {
-            "attacker_resources": raw_report.attacker_resources or [],
-            "attacker_objectives": raw_report.attacker_objectives or [],
-            "objective_context": raw_report.objective_context,
-            "detection_methods": raw_report.detection_methods or []
-        }
-    
-    vulnerability_data = None
-    if "Vulnerability Report" in raw_report.report_types:
-        vulnerability_data = {
-            "proof_of_concept": raw_report.proof_of_concept
-        }
-    
-    hazard_data = None
-    if "Hazard Report" in raw_report.report_types:
-        hazard_data = {
-            "statistical_argument": raw_report.statistical_argument
-        }
-    
-    processed_report = ProcessedAIFlawReport(
-        report_id=report_id,
-        ai_systems=ai_systems,
-        reporter_id=raw_report.reporter_id,
-        session_id=raw_report.session_id,
-        flaw_timestamp_start=raw_report.flaw_timestamp_start,
-        flaw_description=description,
-        policy_violation=policy_violation,
-        severity=raw_report.severity or "Unknown",
-        prevalence=raw_report.prevalence or "Unknown",
-        impacts=raw_report.impacts or [],
-        specific_harm_types=raw_report.specific_harm_types or [],
-        impacted_stakeholders=raw_report.impacted_stakeholders or [],
-        report_types=raw_report.report_types,
-        incident_data=incident_data,
-        security_data=security_data,
-        vulnerability_data=vulnerability_data,
-        hazard_data=hazard_data,
-        disclosure_intent=raw_report.disclosure_intent,
-        disclosure_timeline=raw_report.disclosure_timeline,
-        disclosure_channels=raw_report.disclosure_channels or []
-    )
-    
-    processed_report.raw_data = raw_data
-    return processed_report
 
 def _normalized_description(text: Optional[str]) -> str:
     if not text:
