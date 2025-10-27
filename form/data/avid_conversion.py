@@ -132,26 +132,27 @@ def convert_to_avid_format(raw_or_path) -> dict:
     impacts = _get_list(data, "Impacts", "impacts")
     specific_harms = _get_list(data, "Specific Harm Types", "aifr:specificHarmTypes")
 
-    classof = "LLM Evaluation"
+    # Map to AVID ClassEnum: "AIID Incident", "ATLAS Case Study", "CVE Entry", "LLM Evaluation", "Undefined"
+    classof = "LLM Evaluation"  # Default
     if "Security Incident Report" in report_types or "Malign Actor" in report_types:
-        classof = "Security"
+        classof = "ATLAS Case Study"  # Security incidents map to ATLAS
     elif "Real-World Incidents" in report_types:
-        classof = "Incident"
+        classof = "AIID Incident"  # Real-world incidents map to AIID
     elif "Vulnerability Report" in report_types:
-        classof = "Vulnerability"
+        classof = "CVE Entry"  # Vulnerabilities map to CVE
     elif "Hazard Report" in report_types:
-        classof = "Safety"
+        classof = "LLM Evaluation"  # Hazards are evaluations
 
-    problem_type = "Detection"
-    if "Security Incident Report" in report_types:
-        problem_type = "Adversarial Attack"
-    elif "Discrimination/Bias" in impacts:
-        problem_type = "Bias"
-    elif "Privacy" in impacts:
-        problem_type = "Privacy Violation"
-    elif "Misinformation" in impacts:
-        problem_type = "Misinformation"
-
+    # Map to AVID TypeEnum: "Issue", "Advisory", "Measurement", "Detection"
+    problem_type = "Detection"  # Default
+    if "Security Incident Report" in report_types or "Malign Actor" in report_types:
+        problem_type = "Issue"
+    elif "Real-World Incidents" in report_types:
+        problem_type = "Issue"
+    elif "Vulnerability Report" in report_types:
+        problem_type = "Advisory"
+    elif "Hazard Report" in report_types:
+        problem_type = "Measurement"
 
     # description
     description = _get_str(
@@ -166,41 +167,40 @@ def convert_to_avid_format(raw_or_path) -> dict:
    
     description = description.replace("**Detailed Description:**\n", "").strip()
 
-
     # problem description
     problem_description = description
     if specific_harms:
         harm_list = ", ".join(specific_harms[:2])
         problem_description = f"{description}. Specific harms: {harm_list}"
 
-    # Map impacts to AVID risk domains and SEP view (I used Claude for this one as I'm unsure about AVID risk domains)
+    # Map impacts to AVID risk domains and SEP view based on actual AVID taxonomy
     risk_domains = []
     sep_views = []
 
     impact_to_risk_mapping = {
         "Discrimination/Bias": {
             "domain": "Ethics",
-            "sep": ["E0101: Group fairness", "E0102: Individual fairness"]
+            "sep": ["E0100: Bias/ Discrimination", "E0101: Group fairness"]
         },
         "Privacy": {
             "domain": "Privacy",
-            "sep": ["P0201: Sensitive data", "P0202: Right to be forgotten"]
+            "sep": ["P0300: Privacy", "P0301: Anonymization"]
         },
         "Misinformation": {
             "domain": "Ethics",
-            "sep": ["E0301: Toxicity", "E0302: Misinformation"]
+            "sep": ["E0400: Misinformation", "E0401: Deliberative Misinformation"]
         },
         "Safety": {
-            "domain": "Safety",
-            "sep": ["S0403: Dangerous action"]
+            "domain": "Performance",
+            "sep": ["P0400: Safety", "P0402: Physical safety"]
         },
         "Security": {
             "domain": "Security",
-            "sep": ["S0100: Software security"]
+            "sep": ["S0100: Software Vulnerability"]
         },
         "Environmental": {
-            "domain": "Ethics",
-            "sep": ["E0401: Environmental"]
+            "domain": "Performance",
+            "sep": ["P0404: Environmental safety"]
         }
     }
 
@@ -213,15 +213,18 @@ def convert_to_avid_format(raw_or_path) -> dict:
 
     if not risk_domains:
         risk_domains = ["Ethics"]
-        sep_views = ["E0100: Bias"]
+        sep_views = ["E0100: Bias/ Discrimination"]
 
-    # also Claude for this one
-    lifecycle_view = ["L05: Evaluation"]
+    # Map to AVID LifecycleEnum based on report types
+    # Valid values: "L01: Business Understanding", "L02: Data Understanding", 
+    # "L03: Data Preparation", "L04: Model Development", "L05: Evaluation", "L06: Deployment"
+    lifecycle_view = ["L05: Evaluation"]  # Default
     if "Real-World Incidents" in report_types:
         lifecycle_view = ["L06: Deployment"]
     elif "Vulnerability Report" in report_types:
-        lifecycle_view = ["L04: Verification"]
-
+        lifecycle_view = ["L04: Model Development"]
+    elif "Hazard Report" in report_types:
+        lifecycle_view = ["L05: Evaluation"]
 
     # metrics
     metrics = []
@@ -231,31 +234,30 @@ def convert_to_avid_format(raw_or_path) -> dict:
 
     if detection_methods:
         for method in detection_methods:
+            # Map detection methods to AVID MethodEnum: "Significance Test", "Static Threshold"
+            detection_type = "Static Threshold"
+            if "test" in method.lower() or "statistical" in method.lower():
+                detection_type = "Significance Test"
+            
             metric = {
                 "name": method,
-                "features": {
-                    "measured": f"Severity: {severity}, Prevalence: {prevalence}"
+                "detection_method": {
+                    "type": detection_type,
+                    "name": method
+                },
+                "results": {
+                    "severity": severity,
+                    "prevalence": prevalence
                 }
             }
 
+            # Add sensitive attributes if bias-related
             if "Discrimination/Bias" in impacts:
                 stakeholders = _get_list(data, "Impacted Stakeholder(s)", "aifr:impactedStakeholders")
                 if stakeholders:
-                    metric["features"]["sensitive"] = ", ".join(stakeholders)
-
-            if "observation" in method.lower():
-                metric["detection_method"] = {
-                    "type": "Manual Review",
-                    "name": "User-reported observation"
-                }
-            elif "automated" in method.lower() or "testing" in method.lower():
-                metric["detection_method"] = {
-                    "type": "Automated Test",
-                    "name": "Automated vulnerability scan"
-                }
+                    metric["results"]["sensitive_attributes"] = stakeholders
 
             metrics.append(metric)
-
 
     # references
     references = []
@@ -268,7 +270,7 @@ def convert_to_avid_format(raw_or_path) -> dict:
         references.append({
             "type": "source",
             "label": "Proof of Concept",
-            "url": ""
+            "url": ""  # URL would need to be provided
         })
 
     context_info = _get_str(data, "Context Info", "aifr:contextInfo", default="")
@@ -276,9 +278,8 @@ def convert_to_avid_format(raw_or_path) -> dict:
         references.append({
             "type": "misc",
             "label": "Additional Context",
-            "url": ""
+            "url": ""  # URL would need to be provided
         })
-
 
     # credit
     credit = []
@@ -316,11 +317,10 @@ def convert_to_avid_format(raw_or_path) -> dict:
     if not reported_date:
         reported_date = datetime.now().strftime('%Y-%m-%d')
 
-
-    # AVID report
+    # Build AVID report according to the datamodel
     avid_report = {
         "data_type": "AVID",
-        "data_version": "0.1",
+        "data_version": "0.2",  # Current version
         "metadata": {
             "report_id": avid_report_id
         },
@@ -348,21 +348,21 @@ def convert_to_avid_format(raw_or_path) -> dict:
                 "risk_domain": risk_domains,
                 "sep_view": sep_views,
                 "lifecycle_view": lifecycle_view,
-                "taxonomy_version": "0.1"
+                "taxonomy_version": "0.2"
             }
         },
         "credit": credit,
         "reported_date": reported_date
     }
 
+    # Add vulnerability ID if applicable
     if "Vulnerability Report" in report_types:
         vuln_id = f"AVID-{year}-V{report_id[:3].upper()}" if len(report_id) >= 3 else f"AVID-{year}-VXXX"
         avid_report["impact"]["avid"]["vuln_id"] = vuln_id
 
     return avid_report
 
-
 if __name__ == "__main__":
-    ai_flaw_example = "INSERT_FILE_PATH"
+    ai_flaw_example = "/Users/elainezhu/Downloads/ai_flaw_report_67120781-6f5a-4bdf-973b-e2355161a7bd.json"
     avid_report = convert_to_avid_format(ai_flaw_example)
     print(json.dumps(avid_report, indent=4))
