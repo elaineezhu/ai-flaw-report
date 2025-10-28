@@ -360,3 +360,32 @@ TOOL_OUTPUT_DESCRIPTIONS = {
     "Resource overload/accessibility issues": "Tools and/or their outputs are not available to the agent",
     "Reliability issues (e.g., false information)": "Tools do not always function as intended (excludes cases of malicious attacks)"
 }
+
+DOCUMENTED_HARMS = [
+    "CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')",
+    "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+    "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+    "CWE-416: Use After Free",
+    "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+    "CWE-20: Improper Input Validation",
+    "CWE-125: Out-of-bounds Read",
+    "CWE-787: Out-of-bounds Write",
+    "CWE-352: Cross-Site Request Forgery (CSRF)",
+    "CWE-434: Unrestricted Upload of File with Dangerous Type",
+    "CWE-476: NULL Pointer Dereference",
+    "CWE-502: Deserialization of Untrusted Data",
+    "CWE-190: Integer Overflow or Wraparound",
+    "CWE-287: Improper Authentication",
+    "CWE-798: Use of Hard-coded Credentials",
+    "CWE-862: Missing Authorization",
+    "CWE-77: Improper Neutralization of Special Elements used in a Command ('Command Injection')",
+    "CWE-306: Missing Authentication for Critical Function",
+    "CWE-119: Improper Restriction of Operations within the Bounds of a Memory Buffer",
+    "CWE-863: Incorrect Authorization",
+    "CWE-276: Incorrect Default Permissions",
+    "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor",
+    "CWE-918: Server-Side Request Forgery (SSRF)",
+    "CWE-269: Improper Privilege Management",
+    "CWE-94: Improper Control of Generation of Code ('Code Injection')",
+    "CWE-400: Uncontrolled Resource Consumption"
+]
